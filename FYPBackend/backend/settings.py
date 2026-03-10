@@ -30,8 +30,23 @@ REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
+import os
 
-ALLOWED_HOSTS = ["*"]
+# --- CSRF & Session / CORS configuration ---
+
+
+PROD_DOMAIN = "real-estate-backend-production-7378.up.railway.app"
+
+# Admin CSRF and secure cookies
+CSRF_TRUSTED_ORIGINS = [f"https://{PROD_DOMAIN}"]
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+
+# API access from any frontend (local or deployed)
+CORS_ALLOW_ALL_ORIGINS = True   # allow all frontends to call API
+CORS_ALLOW_CREDENTIALS = True   # required if cookies are used, optional for JWT
+
+ALLOWED_HOSTS = [PROD_DOMAIN]
 
 
 # Application definition
