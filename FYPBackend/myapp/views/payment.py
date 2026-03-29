@@ -1,5 +1,6 @@
 from rest_framework import viewsets, permissions, status, views
 from rest_framework.response import Response
+from ..utils.api_response import success_response, error_response
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 from django.db.models import Q
@@ -21,14 +22,14 @@ class MockPaymentView(views.APIView):
         property_id = request.data.get('property_id')
         
         if not payment_type or not property_id:
-            return Response({"error": "payment_type and property_id are required"}, status=status.HTTP_400_BAD_REQUEST)
-            
+            return error_response(message="payment_type and property_id are required", status_code=status.HTTP_400_BAD_REQUEST)
+
         property_instance = get_object_or_404(Property, id=property_id)
-        
+
         # Check availability only for new transactions (sale or initial rent)
         # Monthly rent is paid on properties that are already 'reserved' (unavailable)
         if payment_type != 'monthly_rent' and not property_instance.is_available:
-            return Response({"error": "This property is no longer available."}, status=status.HTTP_400_BAD_REQUEST)
+            return error_response(message="This property is no longer available.", status_code=status.HTTP_400_BAD_REQUEST)
 
         buyer = request.user
         seller = property_instance.user
@@ -45,9 +46,9 @@ class MockPaymentView(views.APIView):
                 elif payment_type == 'sale':
                     return self._handle_sale(request, property_instance, buyer, seller, mock_charge_id)
                 else:
-                    return Response({"error": "Invalid payment_type"}, status=status.HTTP_400_BAD_REQUEST)
+                    return error_response(message="Invalid payment_type", status_code=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return error_response(message=str(e), status_code=status.HTTP_400_BAD_REQUEST)
 
     def _handle_initial_rent(self, request, property_instance, buyer, seller, charge_id):
         """
@@ -120,12 +121,15 @@ class MockPaymentView(views.APIView):
         property_instance.is_available = False
         property_instance.save()
 
-        return Response({
-            "message": "Rental agreement created successfully!",
-            "agreement_id": agreement.id,
-            "amount_paid": total_amount,
-            "payment_id": payment.id
-        })
+        return success_response(
+            data={
+                "agreement_id": agreement.id,
+                "amount_paid": total_amount,
+                "payment_id": payment.id,
+            },
+            message="Rental agreement created successfully!",
+            status_code=status.HTTP_200_OK,
+        )
 
     def _handle_monthly_rent(self, request, property_instance, buyer, seller, charge_id):
         monthly_payment_id = request.data.get('monthly_payment_id')
@@ -152,11 +156,11 @@ class MockPaymentView(views.APIView):
         rent_record.payment = payment
         rent_record.save()
         
-        return Response({
-            "message": "Rent paid successfully",
-            "amount_paid": rent_record.amount,
-            "payment_id": payment.id
-        })
+        return success_response(
+            data={"amount_paid": rent_record.amount, "payment_id": payment.id},
+            message="Rent paid successfully",
+            status_code=status.HTTP_200_OK,
+        )
 
     def _handle_sale(self, request, property_instance, buyer, seller, charge_id):
         if property_instance.sale_type not in ['sale', 'both']:
@@ -176,11 +180,11 @@ class MockPaymentView(views.APIView):
         property_instance.is_available = False
         property_instance.save()
         
-        return Response({
-            "message": "Property purchased successfully",
-            "amount_paid": property_instance.sale_price,
-            "payment_id": payment.id
-        })
+        return success_response(
+            data={"amount_paid": property_instance.sale_price, "payment_id": payment.id},
+            message="Property purchased successfully",
+            status_code=status.HTTP_200_OK,
+        )
 
     def _add_months(self, source_date, months):
         month = source_date.month - 1 + months

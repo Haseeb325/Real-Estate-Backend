@@ -4,6 +4,8 @@ from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from ..models import ChatSession, ChatMessage, Property
 from ..serializers import ChatSessionSerializer, ChatMessageSerializer
+from ..utils.api_response import success_response, error_response
+from ..utils.mixins import StandardAPIViewMixin
 
 class ChatSessionListCreateAPIView(generics.ListCreateAPIView):
     """
@@ -36,36 +38,32 @@ class ChatSessionListCreateAPIView(generics.ListCreateAPIView):
         """
         property_id = request.data.get('property')
         if not property_id:
-            return Response({"error": "Property ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+            return error_response(message="Property ID is required.", status_code=status.HTTP_400_BAD_REQUEST)
 
         try:
             prop = Property.objects.select_related('user').get(id=property_id)
         except Property.DoesNotExist:
-            return Response({"error": "Property not found."}, status=status.HTTP_404_NOT_FOUND)
+            return error_response(message="Property not found.", status_code=status.HTTP_404_NOT_FOUND)
 
         buyer = request.user # here buyer actually a seller which cant start sesion on own property
 
         if prop.user == buyer:
-            return Response(
-                {"error": "You cannot start a chat session for your own property."}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return error_response(message="You cannot start a chat session for your own property.", status_code=status.HTTP_400_BAD_REQUEST)
 
         # get_or_create is atomic and handles the race condition of creating a session
         session, created = ChatSession.objects.get_or_create(
             property=prop,
             buyer=buyer
         )
-        
+
         serializer = self.get_serializer(session)
-        
+
         # Determine the correct status code
         status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
-        
-        return Response(serializer.data, status=status_code)
 
+        return success_response(data=serializer.data, message="Chat session returned.", status_code=status_code)
 
-class ChatMessageListAPIView(generics.ListAPIView):
+class ChatMessageListAPIView(StandardAPIViewMixin, generics.ListAPIView):
     """
     get:
     Retrieve the message history for a specific chat session.

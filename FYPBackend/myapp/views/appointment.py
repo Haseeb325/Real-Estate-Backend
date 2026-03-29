@@ -3,6 +3,7 @@ from rest_framework import viewsets, permissions, serializers, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
+from ..utils.api_response import success_response, error_response
 
 from ..models import SellerAvailability, Property, Appointment
 from ..serializers import SellerAvailabilitySerializer, AppointmentSerializer
@@ -36,10 +37,11 @@ class SellerAvailabilityViewSet(viewsets.ModelViewSet):
         # Save and capture the instance(s)
         serializer.save(seller=self.request.user)
         headers = self.get_success_headers(serializer.data)
-        return Response({
-            'message': 'Availability slot created successfully.',
-            'availability': serializer.data
-        }, status=status.HTTP_201_CREATED, headers=headers)
+        return success_response(
+            data={'availability': serializer.data},
+            message='Availability slot created successfully.',
+            status_code=status.HTTP_201_CREATED,
+        )
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -49,10 +51,9 @@ class SellerAvailabilityViewSet(viewsets.ModelViewSet):
         self.perform_update(serializer)
 
         response_data = {
-            'message': 'Availability slot updated successfully.',
             'availability': serializer.data
         }
-        return Response(response_data)
+        return success_response(data=response_data, message='Availability slot updated successfully.', status_code=status.HTTP_200_OK)
 
     def perform_update(self, serializer):
         """
@@ -68,10 +69,7 @@ class SellerAvailabilityViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         self.perform_destroy(instance)
-        return Response(
-            {'message': 'Availability slot deleted successfully.'},
-            status=status.HTTP_200_OK
-        )
+        return success_response(message='Availability slot deleted successfully.', data={}, status_code=status.HTTP_200_OK)
 
 
 class AppointmentViewSet(viewsets.ModelViewSet):
@@ -112,18 +110,20 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(existing_appointment, data=request.data, partial=True)
             serializer.is_valid(raise_exception=True)
             self.perform_create(serializer)
-            return Response({
-                'message': 'Appointment request updated successfully. Waiting for seller confirmation.',
-                'appointment': serializer.data
-            }, status=status.HTTP_200_OK)
+            return success_response(
+                data={'appointment': serializer.data},
+                message='Appointment request updated successfully. Waiting for seller confirmation.',
+                status_code=status.HTTP_200_OK,
+            )
         else:
             # Create new appointment
             self.perform_create(serializer)
             headers = self.get_success_headers(serializer.data)
-            return Response({
-                'message': 'Appointment request sent successfully. Waiting for seller confirmation.',
-                'appointment': serializer.data
-            }, status=status.HTTP_201_CREATED, headers=headers)
+            return success_response(
+                data={'appointment': serializer.data},
+                message='Appointment request sent successfully. Waiting for seller confirmation.',
+                status_code=status.HTTP_201_CREATED,
+            )
 
     def perform_create(self, serializer):
         """
@@ -178,17 +178,18 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Only the seller can confirm this appointment.")
 
         if appointment.status != 'pending':
-            return Response(
-                {'error': f'This appointment cannot be confirmed because its status is "{appointment.status}".'},
-                status=status.HTTP_400_BAD_REQUEST
+            return error_response(
+                message=f'This appointment cannot be confirmed because its status is "{appointment.status}".',
+                status_code=status.HTTP_400_BAD_REQUEST,
             )
 
         appointment.status = 'confirmed'
         appointment.save()
-        return Response({
-            'message': 'Appointment confirmed successfully.',
-            'appointment': AppointmentSerializer(appointment).data
-        }, status=status.HTTP_200_OK)
+        return success_response(
+            data={'appointment': AppointmentSerializer(appointment).data},
+            message='Appointment confirmed successfully.',
+            status_code=status.HTTP_200_OK,
+        )
 
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
@@ -202,14 +203,18 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You do not have permission to cancel this appointment.")
 
         if appointment.status in ['completed', 'cancelled']:
-            return Response({'error': 'This appointment cannot be cancelled.'}, status=status.HTTP_400_BAD_REQUEST)
+            return error_response(
+                message='This appointment cannot be cancelled.',
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
 
         appointment.status = 'cancelled'
         appointment.save()
-        return Response({
-            'message': 'Appointment cancelled successfully.',
-            'appointment': AppointmentSerializer(appointment).data
-        }, status=status.HTTP_200_OK)
+        return success_response(
+            data={'appointment': AppointmentSerializer(appointment).data},
+            message='Appointment cancelled successfully.',
+            status_code=status.HTTP_200_OK,
+        )
 
     @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
@@ -224,14 +229,15 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
         # An appointment should be 'confirmed' before it can be 'completed'
         if appointment.status != 'confirmed':
-            return Response(
-                {'error': f'This appointment cannot be completed because its status is "{appointment.status}". It must be confirmed first.'},
-                status=status.HTTP_400_BAD_REQUEST
+            return error_response(
+                message=f'This appointment cannot be completed because its status is "{appointment.status}". It must be confirmed first.',
+                status_code=status.HTTP_400_BAD_REQUEST,
             )
 
         appointment.status = 'completed'
         appointment.save()
-        return Response({
-            'message': 'Congratulations on completing the appointment!',
-            'appointment': AppointmentSerializer(appointment).data
-        }, status=status.HTTP_200_OK)
+        return success_response(
+            data={'appointment': AppointmentSerializer(appointment).data},
+            message='Congratulations on completing the appointment!',
+            status_code=status.HTTP_200_OK,
+        )

@@ -2,7 +2,9 @@ from rest_framework import viewsets, filters, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from rest_framework.pagination import PageNumberPagination
+from ..utils.pagination import StandardResultsSetPagination
+from ..utils.api_response import success_response, error_response
+from ..utils.mixins import StandardAPIViewMixin
 from django.db.models import Sum
 from ..models import (
     CustomUser, Property, SellerProfile, Payment, RentalAgreement, UserStatus
@@ -13,13 +15,12 @@ from ..serializers import (
 )
 from ..permissions import IsAdmin
 
-class AdminPagination(PageNumberPagination):
+class AdminPagination(StandardResultsSetPagination):
     page_size = 10
-    page_size_query_param = 'page_size'
     max_page_size = 100
 
 # Step 1: Admin Dashboard Stats
-class AdminDashboardStatsView(APIView):
+class AdminDashboardStatsView(StandardAPIViewMixin, APIView):
     permission_classes = [IsAdmin]
 
     def get(self, request):
@@ -32,15 +33,19 @@ class AdminDashboardStatsView(APIView):
         # Properties that are not verified
         pending_properties = Property.objects.filter(is_verified=False).count()
         
-        return Response({
-            "total_users": total_users,
-            "total_properties": total_properties,
-            "pending_verifications": {
-                "sellers": pending_sellers,
-                "properties": pending_properties,
-                "total": pending_sellers + pending_properties
-            }
-        })
+        return success_response(
+            data={
+                "total_users": total_users,
+                "total_properties": total_properties,
+                "pending_verifications": {
+                    "sellers": pending_sellers,
+                    "properties": pending_properties,
+                    "total": pending_sellers + pending_properties,
+                },
+            },
+            message="Admin dashboard stats fetched successfully.",
+            status_code=status.HTTP_200_OK,
+        )
 
 # Step 2: User Management
 class AdminUserViewSet(viewsets.ModelViewSet):
@@ -75,7 +80,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         user.status = UserStatus.SUSPENDED
         user.is_active = False
         user.save()
-        return Response({'message': f'User {user.username} suspended.'})
+        return success_response(data={'user': user.username}, message=f'User {user.username} suspended.', status_code=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'])
     def activate(self, request, pk=None):
@@ -83,7 +88,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         user.status = UserStatus.ACTIVE
         user.is_active = True
         user.save()
-        return Response({'message': f'User {user.username} activated.'})
+        return success_response(data={'user': user.username}, message=f'User {user.username} activated.', status_code=status.HTTP_200_OK)
 
 # Step 3 & 4: Property Management & Listing Verification
 class AdminPropertyViewSet(viewsets.ModelViewSet):
@@ -124,14 +129,14 @@ class AdminPropertyViewSet(viewsets.ModelViewSet):
         suspended = Property.objects.filter(status='inactive').count() # Assuming inactive = suspended
         sold = Property.objects.filter(status='sold').count()
         rented = Property.objects.filter(status='reserved').count()
-        
-        return Response({
+
+        return success_response(data={
             "total": total,
             "active": active,
             "suspended": suspended,
             "sold": sold,
-            "rented": rented
-        })
+            "rented": rented,
+        }, message="Admin property stats fetched successfully.", status_code=status.HTTP_200_OK)
 
     # Step 4: Listing Verification Actions
     @action(detail=True, methods=['post'])
@@ -140,7 +145,7 @@ class AdminPropertyViewSet(viewsets.ModelViewSet):
         prop.is_verified = True
         prop.status = 'active'
         prop.save()
-        return Response({'message': 'Property verified and activated.'})
+        return success_response(data={'property_id': prop.id}, message='Property verified and activated.', status_code=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'])
     def reject_verification(self, request, pk=None):
@@ -148,7 +153,7 @@ class AdminPropertyViewSet(viewsets.ModelViewSet):
         prop.is_verified = False
         prop.status = 'reject'
         prop.save()
-        return Response({'message': 'Property verification rejected.'})
+        return success_response(data={'property_id': prop.id}, message='Property verification rejected.', status_code=status.HTTP_200_OK)
 
     # Step 3: Suspend/Activate Actions
     @action(detail=True, methods=['post'])
@@ -156,14 +161,14 @@ class AdminPropertyViewSet(viewsets.ModelViewSet):
         prop = self.get_object()
         prop.status = 'inactive'
         prop.save()
-        return Response({'message': 'Property suspended.'})
+        return success_response(data={'property_id': prop.id}, message='Property suspended.', status_code=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'])
     def activate(self, request, pk=None):
         prop = self.get_object()
         prop.status = 'active'
         prop.save()
-        return Response({'message': 'Property activated.'})
+        return success_response(data={'property_id': prop.id}, message='Property activated.', status_code=status.HTTP_200_OK)
 
 # Step 4: User (Seller) Verification
 class AdminSellerVerificationViewSet(viewsets.ReadOnlyModelViewSet):
@@ -184,14 +189,14 @@ class AdminSellerVerificationViewSet(viewsets.ReadOnlyModelViewSet):
         profile = self.get_object()
         profile.is_verified_seller = True
         profile.save()
-        return Response({'message': 'Seller verified successfully.'})
+        return success_response(data={'seller_id': profile.user.id}, message='Seller verified successfully.', status_code=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
         profile = self.get_object()
         profile.is_verified_seller = False
         profile.save()
-        return Response({'message': 'Seller verification rejected.'})
+        return success_response(data={'seller_id': profile.user.id}, message='Seller verification rejected.', status_code=status.HTTP_200_OK)
 
 # Step 5: Financials
 class AdminFinanceViewSet(viewsets.ViewSet):
@@ -204,22 +209,26 @@ class AdminFinanceViewSet(viewsets.ViewSet):
     def stats(self, request):
         sales_count = Payment.objects.filter(payment_type='sale', status='succeeded').count()
         active_rentings = RentalAgreement.objects.filter(status='active').count()
-        
+
         revenue_sales = Payment.objects.filter(
             payment_type='sale', status='succeeded'
         ).aggregate(total=Sum('amount'))['total'] or 0
-        
+
         revenue_rent = Payment.objects.filter(
             payment_type__in=['rent', 'security_deposit'], 
             status='succeeded'
         ).aggregate(total=Sum('amount'))['total'] or 0
-        
-        return Response({
-            "sales_count": sales_count,
-            "active_rentings": active_rentings,
-            "revenue_sales": revenue_sales,
-            "revenue_rent": revenue_rent
-        })
+
+        return success_response(
+            data={
+                "sales_count": sales_count,
+                "active_rentings": active_rentings,
+                "revenue_sales": revenue_sales,
+                "revenue_rent": revenue_rent,
+            },
+            message="Finance stats fetched successfully.",
+            status_code=status.HTTP_200_OK,
+        )
 
     @action(detail=False, methods=['get'])
     def sales(self, request):

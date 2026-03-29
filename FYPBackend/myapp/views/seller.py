@@ -3,7 +3,9 @@ from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
-from rest_framework.pagination import PageNumberPagination
+from ..utils.api_response import success_response, error_response
+from ..utils.mixins import StandardAPIViewMixin, StandardViewSetMixin
+from ..utils.pagination import StandardResultsSetPagination
 from ..models import SellerProfile , SellerDocs, Property, PropertyImage
 from ..permissions import IsSeller
 from ..serializers import (
@@ -16,7 +18,7 @@ from ..serializers import (
 )
 import logging
 
-class SellerProfileDetailView(generics.RetrieveUpdateAPIView):
+class SellerProfileDetailView(StandardAPIViewMixin, generics.RetrieveUpdateAPIView):
     """
     get:
     Retrieve the profile of the currently authenticated seller.
@@ -41,11 +43,11 @@ class SellerProfileDetailView(generics.RetrieveUpdateAPIView):
 
             instance = self.get_object()
             # if instance is found, update it
-            serializer = self.get_serializer(instance, data= request.data, partial= partial)
+            serializer = self.get_serializer(instance, data=request.data, partial=partial)
             serializer.is_valid(raise_exception=True)
             self.perform_update(serializer)
-            return Response(serializer.data)
-        
+            return success_response(serializer.data, message="Profile updated successfully.", status_code=status.HTTP_200_OK)
+
         except Http404:
             # If profile does not exist, create it
             # if get_object() raises Http404, no profile exists, so we create a new one
@@ -53,13 +55,13 @@ class SellerProfileDetailView(generics.RetrieveUpdateAPIView):
             serializer.is_valid(raise_exception=True)
             # manually associate the new profile with the current user before saving
             serializer.save(user=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return success_response(serializer.data, message="Profile created successfully.", status_code=status.HTTP_201_CREATED)
         
 
 
 
 logger = logging.getLogger(__name__)
-class SellerDocsUploadView(generics.RetrieveUpdateAPIView):
+class SellerDocsUploadView(StandardAPIViewMixin, generics.RetrieveUpdateAPIView):
     serializer_class = SellerDocsSerializer
     permission_classes = [IsSeller]
 
@@ -77,26 +79,24 @@ class SellerDocsUploadView(generics.RetrieveUpdateAPIView):
             serializer = self.get_serializer(instance, data=request.data, partial=partial)
             
             if not serializer.is_valid():
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                return error_response(message="Invalid seller docs payload", data=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
             
             try:
                 already_set_user = SellerDocs.objects.get(user=self.request.user)
                 if already_set_user:
                     self.perform_update(serializer)
-                    return Response(serializer.data, status=status.HTTP_200_OK)
+                    return success_response(serializer.data, message="Seller docs updated successfully.", status_code=status.HTTP_200_OK)
             except Exception as e:
                 logger.error(f"Failed to update SellerDocs for user {request.user.id}: {str(e)}")
-                return Response(
-                    {"error": "Failed to save document. Please try again."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                return error_response(message="Failed to save document. Please try again.", status_code=status.HTTP_400_BAD_REQUEST)
+
             
         except Http404:
             # If docs don't exist, create new ones
             serializer = self.get_serializer(data=request.data)
             
             if not serializer.is_valid():
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                return error_response(message="Invalid seller docs payload", data=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
             
             try:
                 docs = SellerDocs.objects.create(
@@ -106,33 +106,25 @@ class SellerDocsUploadView(generics.RetrieveUpdateAPIView):
                 seller = SellerProfile.objects.get(user=request.user)
                 seller.docs = docs
                 seller.save()
-                return Response(SellerDocsSerializer(docs).data, status=status.HTTP_201_CREATED)
+                return success_response(SellerDocsSerializer(docs).data, message="Seller docs created successfully.", status_code=status.HTTP_201_CREATED)
             except SellerProfile.DoesNotExist:
                 docs.delete()
                 logger.error(f"SellerProfile not found for user {request.user.id}")
-                return Response(
-                    {"error": "Seller profile not found."},
-                    status=status.HTTP_404_NOT_FOUND
-                )
+                return error_response(message="Seller profile not found.", status_code=status.HTTP_404_NOT_FOUND)
             except Exception as e:
                 logger.error(f"Failed to create SellerDocs for user {request.user.id}: {str(e)}")
-                return Response(
-                    {"error": "Failed to upload document. Please try again."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                return error_response(message="Failed to upload document. Please try again.", status_code=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Unexpected error in SellerDocsUploadView for user {request.user.id}: {str(e)}")
-            return Response(
-                {"error": "An unexpected error occurred."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return error_response(message="An unexpected error occurred.", status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class SellerPropertyPagination(PageNumberPagination):
+
+
+class SellerPropertyPagination(StandardResultsSetPagination):
     page_size = 10
-    page_size_query_param = 'page_size'
     max_page_size = 50
 
-class PropertyViewSet(viewsets.ModelViewSet):
+class PropertyViewSet(StandardViewSetMixin):
     """
     ViewSet for sellers to manage their properties.
     - list: Returns a list of properties for the authenticated seller.
@@ -193,7 +185,7 @@ class PropertyViewSet(viewsets.ModelViewSet):
         # Serialize the instance with the detail serializer for the response
         response_serializer = PropertyDetailSerializer(instance, context=self.get_serializer_context())
         headers = self.get_success_headers(response_serializer.data)
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        return success_response(data=response_serializer.data, message="Property created successfully.", status_code=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
         """
@@ -207,7 +199,7 @@ class PropertyViewSet(viewsets.ModelViewSet):
 
         # Serialize the instance with the detail serializer for the response
         response_serializer = PropertyDetailSerializer(updated_instance, context=self.get_serializer_context())
-        return Response(response_serializer.data)
+        return success_response(data=response_serializer.data, message="Property updated successfully.", status_code=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'], url_path='upload-image')
     def upload_image(self, request, pk=None):
@@ -218,12 +210,12 @@ class PropertyViewSet(viewsets.ModelViewSet):
         
         # Check if the user owns this property
         if property_instance.user != request.user:
-            return Response({'error': 'You do not have permission to add an image to this property.'}, status=status.HTTP_403_FORBIDDEN)
+            return error_response(message='You do not have permission to add an image to this property.', status_code=status.HTTP_403_FORBIDDEN)
 
         # The 'image' field is expected in the request data
         serializer = PropertyImageSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(property=property_instance)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return success_response(data=serializer.data, message="Image uploaded successfully.", status_code=status.HTTP_201_CREATED)
         else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return error_response(message="Invalid image payload", data=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)

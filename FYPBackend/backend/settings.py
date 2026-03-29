@@ -179,10 +179,15 @@ SESSION_COOKIE_AGE = 300  # 5 minutes (OTP-friendly)
 
 
 REST_FRAMEWORK = {
-    # ...
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'DEFAULT_RENDERER_CLASSES': (
+        'myapp.utils.renderers.StandardEnvelopeRenderer',
+    ),
+    'DEFAULT_PAGINATION_CLASS': 'myapp.utils.pagination.StandardResultsSetPagination',
+    'PAGE_SIZE': 10,
+    'EXCEPTION_HANDLER': 'myapp.utils.exceptions.custom_exception_handler',
 }
 
 

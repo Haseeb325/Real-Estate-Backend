@@ -3,9 +3,11 @@ from rest_framework.response import Response
 from django.http import Http404
 from ..models import BuyerProfile
 from ..serializers import BuyerProfileSerializer
+from ..utils.api_response import success_response, error_response
+from ..utils.mixins import StandardAPIViewMixin
 
 
-class BuyerProfileDetailView(generics.RetrieveUpdateAPIView):
+class BuyerProfileDetailView(StandardAPIViewMixin, generics.RetrieveUpdateAPIView):
     """
     get:
     Retrieve the profile of the currently authenticated buyer.
@@ -36,10 +38,10 @@ class BuyerProfileDetailView(generics.RetrieveUpdateAPIView):
             try:
 
              self.perform_update(serializer)
-             return Response(serializer.data)
+             return success_response(serializer.data, message='Profile updated successfully.', status_code=status.HTTP_200_OK)
             except Exception as e:
                 print(f"Error during update: {e}")
-                return Response({"message":"failed to upload"}, status=status.HTTP_400_BAD_REQUEST)
+                return error_response(message='failed to upload', status_code=status.HTTP_400_BAD_REQUEST)
         except Http404:
             # If profile does not exist, create it
             # if get_object() fails , no profile exists, so we create a new one
@@ -48,8 +50,8 @@ class BuyerProfileDetailView(generics.RetrieveUpdateAPIView):
             # manually associate the new profile with the current user before saving
             try:
              serializer.save(user=request.user)
-             return Response(serializer.data, status=status.HTTP_201_CREATED)
+             return success_response(serializer.data, status_code=status.HTTP_201_CREATED, message='Profile created successfully.')
             except Exception as e:
                 print(f"Error during creation: {e}")
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                return error_response(message=str(serializer.errors), data=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
             
