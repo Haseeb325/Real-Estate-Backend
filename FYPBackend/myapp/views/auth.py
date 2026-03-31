@@ -98,7 +98,7 @@ class ResendOTPView(APIView):
         - token: string (from Step 1 response)
     """
     def get(self, request, *args, **kwargs):
-        token = request.headers.get("token")
+        token = request.query_params.get("token")
 
         if not token:
             return error_response(message="Token is required", status_code=status.HTTP_400_BAD_REQUEST)
