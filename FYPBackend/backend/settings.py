@@ -202,6 +202,12 @@ SIMPLE_JWT = {
     'SIGNING_KEY': SECRET_KEY,
 }
 
+from corsheaders.defaults import default_headers
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'token',
+    'email',
+]
 
 CORS_ALLOW_CREDENTIALS = True  # Important!
 CORS_ALLOW_ALL_ORIGINS = True
