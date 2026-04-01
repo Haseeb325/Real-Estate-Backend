@@ -237,8 +237,9 @@ class ForgotPassword(APIView):
             cache.set(f"forgot_password:{token}", {"email": email, "attempt": 0}, timeout=3600)
             print(">>> Created new token:", token)
         
-        base_url = "http://127.0.0.1"
-        link = f"{base_url}/{email}/{token}"
+        base_url = "http://localhost:4200/forgot-password"
+        # link = f"{base_url}/{email}/{token}"
+        link = f"{base_url}"
 
         send_reset_password_email.delay(email, link)
         return success_response(message="Link has been sent. Click to reset password", data={"token": token}, status_code=status.HTTP_200_OK)
