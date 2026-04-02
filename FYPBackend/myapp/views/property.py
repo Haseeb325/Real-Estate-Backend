@@ -50,7 +50,7 @@ class PropertyListAPIView(StandardAPIViewMixin, generics.ListAPIView):
 
             # nested model simple equals
             'bedrooms': ['house__bedrooms', 'apartments__bedrooms'],
-            'bathrooms': ['house__bathrooms', 'apartments__bathrooms'],
+            'bathrooms': ['house__bathrooms', 'apartments__bathrooms', 'commercial__bathrooms'],
             'builtup_area': ['house__builtup_area', 'apartments__builtup_area', 'commercial__builtup_area'],
             'year_built': ['house__year_built'],
             'parking': ['house__parking', 'apartments__parking', 'commercial__parking_details'],
@@ -60,6 +60,7 @@ class PropertyListAPIView(StandardAPIViewMixin, generics.ListAPIView):
             'plot_type': ['plots_and_land__plot_type'],
             'commercial_type': ['commercial__commercial_type'],
             'commercial_subtype': ['commercial__commercial_subtype'],
+            'building_grade': ['commercial__building_grade'],
         }
 
         text_contains_map = {'location', 'location_text', 'title'}
@@ -134,7 +135,7 @@ class PropertyListAPIView(StandardAPIViewMixin, generics.ListAPIView):
                     continue
 
                 int_val = _parse_int(raw_value)
-                if key in ['bedrooms', 'bathrooms', 'year_built', 'building_grade']:
+                if key in ['bedrooms', 'bathrooms', 'year_built']:
                     if int_val is None:
                         continue
                     raw_value = int_val
