@@ -351,7 +351,7 @@ class Commercial(models.Model):
     useable_area = models.CharField(max_length=20)
     floor_number = models.CharField(max_length=20)
     frontage = models.CharField(max_length=20)
-    bedrooms = models.IntegerField()
+    bathrooms = models.IntegerField()
     has_kitchen = models.BooleanField(default=False)
     FURNISHING = (
         ("furnished", "Furnished"),
