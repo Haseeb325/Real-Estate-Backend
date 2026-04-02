@@ -142,7 +142,7 @@ class PropertyListSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     class Meta:
         model = Property
-        fields = ('id', 'title', 'property_type', 'sale_type', 'sale_price', 'rent_price', 'location', 'hero_image', 'user', 'status', 'is_verified')
+        fields = ('id', 'title', 'property_type', 'sale_type', 'sale_price', 'rent_price', 'location', 'location_text', 'hero_image', 'user', 'status', 'is_verified')
 
 
 class PropertyDetailSerializer(serializers.ModelSerializer):
@@ -213,7 +213,7 @@ class PropertyCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Property
         fields = (
-            'id', 'property_type', 'title', 'location', 'is_available', 'status',
+            'id', 'property_type', 'title', 'location', 'location_text', 'is_available', 'status',
             'sale_type', 'sale_price', 'rent_price', 'security_deposit', 'hero_image',
             'house', 'apartment', 'plots_and_land', 'commercial',
             'images'  # Add images field here

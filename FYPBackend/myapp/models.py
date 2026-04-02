@@ -177,6 +177,7 @@ class Property(models.Model):
     property_type = models.CharField(max_length=20, choices=PropertyType.choices, default=PropertyType.HOUSE)
     title = models.CharField(max_length=200)
     location = models.URLField()
+    location_text = models.CharField(max_length=100, blank=True, null=True, help_text="Human-readable city/location name like Lahore, Karachi etc.")
     is_available = models.BooleanField(default=True)
     is_verified = models.BooleanField(default=False)
     
