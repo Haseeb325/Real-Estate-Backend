@@ -41,11 +41,8 @@ class PropertyListAPIView(StandardAPIViewMixin, generics.ListAPIView):
         ).order_by('-created_at')
 
         filter_map = {
-            'property_type': 'property_type',
-            'sale_type': 'sale_type',
-            'status': 'status',
-            'is_available': 'is_available',
-            'is_verified': 'is_verified',
+            'property_type': 'property_type', # Keep this as users might want to filter by type
+            'sale_type': 'sale_type',       # Keep this as users might want to filter by sale/rent
             'location': 'location__icontains',
             'location_text': 'location_text__icontains',
             'title': 'title__icontains',
@@ -150,13 +147,10 @@ class PropertyListAPIView(StandardAPIViewMixin, generics.ListAPIView):
                     q &= nested_q
                 else:
                     q &= Q(**{mapping: raw_value})
-                continue
-
-            # fallback: try direct property field exact match
-            q &= Q(**{f"{key}": raw_value})
+                continue # Ensure we continue after handling a mapped key
 
         queryset = queryset.filter(q)
-        return queryset
+        return queryset.select_related('user') # Optimize fetching user details
 
 
 class PropertyDetailAPIView(StandardAPIViewMixin, generics.RetrieveAPIView):
@@ -176,4 +170,10 @@ class PropertyDetailAPIView(StandardAPIViewMixin, generics.RetrieveAPIView):
             status='active', 
             is_available=True, 
             is_verified=True
-        )
+        ).select_related(
+            'user',
+            'house',
+            'apartments', # Note: related_name is 'apartments'
+            'plots_and_land',
+            'commercial'
+        ).prefetch_related('images', 'house__features', 'apartments__features', 'plots_and_land__features', 'commercial__features')
