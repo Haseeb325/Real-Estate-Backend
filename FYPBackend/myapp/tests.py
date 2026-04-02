@@ -1,10 +1,7 @@
-# from django.urls import reverse
-# from rest_framework import status
-# from rest_framework.test import APITestCase
-# from .models import CustomUser, Property, House, Features, PropertyImage, PropertyType, UserRole
-# from django.core.files.uploadedfile import SimpleUploadedFile
-# import tempfile
-# from PIL import Image
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APITestCase
+from .models import CustomUser, Property, House, Apartment, PropertyType, UserRole
 
 # class PropertyAPITests(APITestCase):
 #     def setUp(self):
@@ -332,4 +329,93 @@
 #                 response = self.client.get(detail_url)
                 
 #                 self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class PropertyBrowseFilterTests(APITestCase):
+    def setUp(self):
+        self.seller = CustomUser.objects.create_user(
+            email='seller@example.com',
+            username='seller',
+            full_name='Seller One',
+            role=UserRole.SELLER,
+            password='testpass123'
+        )
+        self.buyer = CustomUser.objects.create_user(
+            email='buyer@example.com',
+            username='buyer',
+            full_name='Buyer One',
+            role=UserRole.BUYER,
+            password='testpass123'
+        )
+
+        self.active_house = Property.objects.create(
+            user=self.seller,
+            title='House with 2 baths',
+            property_type=PropertyType.HOUSE,
+            location='http://example.com/house',
+            location_text='Lahore',
+            sale_type='sale',
+            sale_price=100000,
+            status='active',
+            is_available=True,
+            is_verified=True
+        )
+        House.objects.create(
+            property=self.active_house,
+            bedrooms=3,
+            bathrooms=2,
+            builtup_area=1500,
+            year_built=2020,
+            parking='2carriage',
+            plot_size=500,
+            floors=2,
+            description='Nice house.'
+        )
+
+        self.active_apt = Property.objects.create(
+            user=self.seller,
+            title='Apartment with 1 bath',
+            property_type=PropertyType.APARTMENT,
+            location='http://example.com/apt',
+            location_text='Karachi',
+            sale_type='rent',
+            rent_price=5000,
+            status='active',
+            is_available=True,
+            is_verified=True
+        )
+        Apartment.objects.create(
+            property=self.active_apt,
+            bedrooms=2,
+            bathrooms=1,
+            builtup_area=900,
+            furnishing='furnished',
+            parking=1,
+            has_balcony=False,
+            occupant_preference='Family',
+            description='Comfortable apt.'
+        )
+
+        self.browse_url = reverse('property-browse')
+
+    def test_bathrooms_query_param_filters_results(self):
+        self.client.force_authenticate(user=self.buyer)
+        response = self.client.get(self.browse_url + '?bathrooms=2')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['title'], 'House with 2 baths')
+
+    def test_builtup_area_query_param_filters_results(self):
+        self.client.force_authenticate(user=self.buyer)
+        response = self.client.get(self.browse_url + '?builtup_area=900')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['title'], 'Apartment with 1 bath')
+
+    def test_invalid_filter_key_returns_400(self):
+        self.client.force_authenticate(user=self.buyer)
+        response = self.client.get(self.browse_url + '?invalid_field=2')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('filters', response.data)
+
         

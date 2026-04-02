@@ -91,6 +91,16 @@ class PropertyListAPIView(StandardAPIViewMixin, generics.ListAPIView):
 
         # apply dynamic filters from query params
         q = Q()
+        allowed_keys = set(filter_map.keys()) | {'min_price', 'max_price', 'min_builtup_area', 'max_builtup_area'}
+        incoming_keys = [k for k in self.request.query_params.keys() if k not in ['page', 'page_size', 'ordering', 'search']]
+        invalid_keys = [k for k in incoming_keys if k not in allowed_keys]
+        if invalid_keys:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({
+                'filters': f"Invalid filter keys provided: {', '.join(invalid_keys)}. "
+                           f"Allowed keys: {', '.join(sorted(allowed_keys))}."
+            })
+
         for key, raw_value in self.request.query_params.items():
             if key in ['page', 'page_size', 'ordering', 'search']:
                 continue
