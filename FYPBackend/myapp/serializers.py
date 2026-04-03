@@ -2,6 +2,7 @@ from requests import Response
 from rest_framework import serializers
 from .models import *
 import cloudinary.exceptions
+import json
 
 
 class UserRegisterationStep1Serializer(serializers.ModelSerializer):
@@ -164,6 +165,14 @@ class PropertyDetailSerializer(serializers.ModelSerializer):
 
 # Custom field to handle feature serialization for both input and output
 class FeatureListField(serializers.ListField):
+    def to_internal_value(self, data):
+        # Handle comma-separated string from form-data or single-item lists
+        if isinstance(data, str):
+            return [item.strip() for item in data.split(',') if item.strip()]
+        if isinstance(data, list) and len(data) == 1 and isinstance(data[0], str) and ',' in data[0]:
+            return [item.strip() for item in data[0].split(',') if item.strip()]
+        return super().to_internal_value(data)
+
     def to_representation(self, data):
         # On output (to_representation), data is a ManyRelatedManager.
         # We need to query it to get the actual Feature objects.
@@ -219,6 +228,69 @@ class PropertyCreateUpdateSerializer(serializers.ModelSerializer):
             'images'  # Add images field here
         )
         read_only_fields = ('id',)
+
+    def to_internal_value(self, data):
+        # Create a mutable copy of the data if it's a QueryDict (from form-data)
+        processed_data = data.copy() if hasattr(data, 'copy') else dict(data)
+
+        # Handle nested objects sent as flat keys (e.g. apartment[bedrooms] or apartment.bedrooms)
+        # This is essential for MultiPartParser (image uploads) which doesn't support nested JSON.
+        nested_fields = ['house', 'apartment', 'plots_and_land', 'commercial']
+        
+        for field in nested_fields:
+            # Case 1: Field is sent as a JSON string (e.g. apartment: '{"bedrooms": 3}')
+            if field in processed_data and isinstance(processed_data[field], str):
+                try:
+                    processed_data[field] = json.loads(processed_data[field])
+                except (ValueError, TypeError):
+                    pass
+
+            # Case 2: Field is sent as flat keys (e.g. apartment[bedrooms]: 3)
+            if not isinstance(processed_data.get(field), dict):
+                nested_dict = {}
+                keys_to_remove = []
+                for key in list(processed_data.keys()):
+                    for prefix in [f"{field}.", f"{field}["]:
+                        if key.startswith(prefix):
+                            inner_key = key[len(prefix):].rstrip(']')
+                            
+                            # Extract value; handle QueryDict lists (getlist)
+                            val = processed_data.getlist(key) if hasattr(processed_data, 'getlist') else processed_data[key]
+                            
+                            # If it's a list of 1, take the first element (unless it's 'features')
+                            if isinstance(val, list) and inner_key != 'features':
+                                val = val[0] if val else None
+                            
+                            nested_dict[inner_key] = val
+                            keys_to_remove.append(key)
+                
+                if nested_dict:
+                    processed_data[field] = nested_dict
+                    for key in keys_to_remove:
+                        processed_data.pop(key, None)
+
+        return super().to_internal_value(processed_data)
+
+    def validate(self, data):
+        # Dynamic validation: require nested data based on property_type
+        property_type = data.get('property_type')
+        if not property_type and self.instance:
+            property_type = self.instance.property_type
+
+        type_to_field = {
+            'house': 'house',
+            'apartment': 'apartment',
+            'plots_and_land': 'plots_and_land',
+            'commercial': 'commercial'
+        }
+
+        required_field = type_to_field.get(property_type)
+        if required_field and not data.get(required_field):
+            raise serializers.ValidationError({
+                required_field: [f"This field is required when property_type is '{property_type}'."]
+            })
+
+        return data
 
     def _handle_features(self, sub_property, feature_names):
         """Helper function to get or create feature objects and set them."""
