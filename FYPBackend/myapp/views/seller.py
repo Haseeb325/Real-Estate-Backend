@@ -124,7 +124,7 @@ class SellerPropertyPagination(StandardResultsSetPagination):
     page_size = 10
     max_page_size = 50
 
-class PropertyViewSet(StandardViewSetMixin, viewsets.ModelViewSet):
+class PropertyViewSet(StandardViewSetMixin):
     """
     ViewSet for sellers to manage their properties.
     - list: Returns a list of properties for the authenticated seller.
@@ -205,8 +205,7 @@ class PropertyViewSet(StandardViewSetMixin, viewsets.ModelViewSet):
         """
         Custom destroy method to return a consistent success response.
         """
-        # Use filter().first() or get_object to ensure we are targeting the right record
-        instance = self.get_object() 
+        instance = self.get_object()
         property_id = instance.id
         instance.delete() # Explicitly call delete to ensure database persistence
         return success_response(data={'id': property_id}, message="Property deleted successfully.", status_code=status.HTTP_200_OK)
