@@ -230,8 +230,16 @@ class PropertyCreateUpdateSerializer(serializers.ModelSerializer):
         read_only_fields = ('id',)
 
     def to_internal_value(self, data):
-        # Create a mutable copy of the data if it's a QueryDict (from form-data)
-        processed_data = data.copy() if hasattr(data, 'copy') else dict(data)
+        # Use a plain dictionary to avoid QueryDict's list-wrapping behavior.
+        # QueryDict (from form-data) wraps every value in a list, which breaks 
+        # nested serializers when we try to group flat keys into a dictionary.
+        if hasattr(data, 'dict'):
+            processed_data = data.dict()
+            # Explicitly restore the list for 'images' since it's a valid list of files
+            if 'images' in data:
+                processed_data['images'] = data.getlist('images')
+        else:
+            processed_data = dict(data)
 
         # Handle nested objects sent as flat keys (e.g. apartment[bedrooms] or apartment.bedrooms)
         # This is essential for MultiPartParser (image uploads) which doesn't support nested JSON.
@@ -254,13 +262,12 @@ class PropertyCreateUpdateSerializer(serializers.ModelSerializer):
                         if key.startswith(prefix):
                             inner_key = key[len(prefix):].rstrip(']')
                             
-                            # Extract value; handle QueryDict lists (getlist)
-                            val = processed_data.getlist(key) if hasattr(processed_data, 'getlist') else processed_data[key]
-                            
-                            # If it's a list of 1, take the first element (unless it's 'features')
-                            if isinstance(val, list) and inner_key != 'features':
-                                val = val[0] if val else None
-                            
+                            # If the user sent features as multiple fields, get the list from original data
+                            if inner_key == 'features' and hasattr(data, 'getlist'):
+                                val = data.getlist(key)
+                            else:
+                                val = processed_data[key]
+
                             nested_dict[inner_key] = val
                             keys_to_remove.append(key)
                 
