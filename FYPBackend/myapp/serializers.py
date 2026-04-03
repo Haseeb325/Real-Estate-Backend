@@ -225,25 +225,35 @@ class PropertyCreateUpdateSerializer(serializers.ModelSerializer):
         Restructure flat dot-notation keys (e.g., 'house.bedrooms') into 
         nested dictionaries so the serializer can process them correctly.
         """
-        if hasattr(data, 'dict'):
-            processed_data = data.dict()
-        else:
-            processed_data = data.copy()
+        # Use copy() instead of dict() to preserve lists (especially for images/files)
+        processed_data = data.copy()
 
         nested_fields = ['house', 'apartment', 'plots_and_land', 'commercial']
+        
         for field in nested_fields:
             nested_obj = {}
             keys_to_remove = []
-            for key, value in processed_data.items():
+            # Iterate over keys present in the data
+            for key in processed_data.keys():
                 if key.startswith(f"{field}."):
                     sub_key = key.split('.', 1)[1]
+                    value = processed_data.get(key)
+                    
+                    # Convert 'features' string to list so it passes ListField validation
+                    if sub_key == 'features' and isinstance(value, str):
+                        value = [f.strip() for f in value.split(',') if f.strip()]
+                    
                     nested_obj[sub_key] = value
                     keys_to_remove.append(key)
             
             if nested_obj:
                 processed_data[field] = nested_obj
                 for key in keys_to_remove:
-                    processed_data.pop(key)
+                    processed_data.pop(key, None)
+
+        # Explicitly handle 'images' as a list if it's coming from form-data
+        if hasattr(data, 'getlist') and 'images' in data:
+            processed_data['images'] = data.getlist('images')
 
         return super().to_internal_value(processed_data)
 
