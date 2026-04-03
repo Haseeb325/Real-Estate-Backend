@@ -1,7 +1,7 @@
 from django.http import Http404
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from ..utils.api_response import success_response, error_response
 from ..utils.mixins import StandardAPIViewMixin, StandardViewSetMixin
@@ -135,7 +135,7 @@ class PropertyViewSet(StandardViewSetMixin):
     - destroy: Deletes a specific property.
     """
     permission_classes = [IsSeller]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     pagination_class = SellerPropertyPagination
 
     def get_queryset(self):
@@ -200,6 +200,15 @@ class PropertyViewSet(StandardViewSetMixin):
         # Serialize the instance with the detail serializer for the response
         response_serializer = PropertyDetailSerializer(updated_instance, context=self.get_serializer_context())
         return success_response(data=response_serializer.data, message="Property updated successfully.", status_code=status.HTTP_200_OK)
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        Custom destroy method to return a consistent success response.
+        """
+        instance = self.get_object()
+        property_id = instance.id
+        instance.delete() # Explicitly call delete to ensure database persistence
+        return success_response(data={'id': property_id}, message="Property deleted successfully.", status_code=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'], url_path='upload-image')
     def upload_image(self, request, pk=None):

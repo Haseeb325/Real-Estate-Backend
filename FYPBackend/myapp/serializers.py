@@ -1,5 +1,6 @@
 from requests import Response
 from rest_framework import serializers
+from django.db import transaction
 from .models import *
 import cloudinary.exceptions
 
@@ -281,6 +282,7 @@ class PropertyCreateUpdateSerializer(serializers.ModelSerializer):
 
         return property_instance
     
+    @transaction.atomic
     def update(self, instance, validated_data):
         house_data = validated_data.pop('house', None)
         apartment_data = validated_data.pop('apartment', None)
@@ -303,44 +305,25 @@ class PropertyCreateUpdateSerializer(serializers.ModelSerializer):
         instance = super().update(instance, validated_data)
 
         property_type = instance.property_type
-        
-        # This update logic assumes the property_type does not change.
-        
-        if property_type == 'house' and house_data:
-            if hasattr(instance, 'house'):
-                feature_names = house_data.pop('features', None)
-                for key, value in house_data.items():
-                    setattr(instance.house, key, value)
-                instance.house.save()
-                if feature_names is not None:
-                    self._handle_features(instance.house, feature_names)
 
-        elif property_type == 'apartment' and apartment_data:
-            if hasattr(instance, 'apartments'):
-                feature_names = apartment_data.pop('features', None)
-                for key, value in apartment_data.items():
-                    setattr(instance.apartments, key, value)
-                instance.apartments.save()
-                if feature_names is not None:
-                    self._handle_features(instance.apartments, feature_names)
+        # Map property types to their respective data and model attribute names
+        sub_property_map = {
+            'house': (house_data, 'house'),
+            'apartment': (apartment_data, 'apartments'),
+            'plots_and_land': (plots_and_land_data, 'plots_and_land'),
+            'commercial': (commercial_data, 'commercial')
+        }
 
-        elif property_type == 'plots_and_land' and plots_and_land_data:
-            if hasattr(instance, 'plots_and_land'):
-                feature_names = plots_and_land_data.pop('features', None)
-                for key, value in plots_and_land_data.items():
-                    setattr(instance.plots_and_land, key, value)
-                instance.plots_and_land.save()
+        if property_type in sub_property_map:
+            data, attr_name = sub_property_map[property_type]
+            if data and hasattr(instance, attr_name):
+                sub_instance = getattr(instance, attr_name)
+                feature_names = data.pop('features', None)
+                for key, value in data.items():
+                    setattr(sub_instance, key, value)
+                sub_instance.save()
                 if feature_names is not None:
-                    self._handle_features(instance.plots_and_land, feature_names)
-
-        elif property_type == 'commercial' and commercial_data:
-            if hasattr(instance, 'commercial'):
-                feature_names = commercial_data.pop('features', None)
-                for key, value in commercial_data.items():
-                    setattr(instance.commercial, key, value)
-                instance.commercial.save()
-                if feature_names is not None:
-                    self._handle_features(instance.commercial, feature_names)
+                    self._handle_features(sub_instance, feature_names)
 
         return instance
 
