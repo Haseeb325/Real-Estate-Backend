@@ -1,6 +1,5 @@
 from requests import Response
 from rest_framework import serializers
-from django.db import transaction
 from .models import *
 import cloudinary.exceptions
 
@@ -311,7 +310,6 @@ class PropertyCreateUpdateSerializer(serializers.ModelSerializer):
 
         return property_instance
     
-    @transaction.atomic
     def update(self, instance, validated_data):
         house_data = validated_data.pop('house', None)
         apartment_data = validated_data.pop('apartment', None)

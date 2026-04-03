@@ -201,7 +201,6 @@ class PropertyViewSet(StandardViewSetMixin, viewsets.ModelViewSet):
         response_serializer = PropertyDetailSerializer(updated_instance, context=self.get_serializer_context())
         return success_response(data=response_serializer.data, message="Property updated successfully.", status_code=status.HTTP_200_OK)
 
-    @transaction.atomic
     def destroy(self, request, *args, **kwargs):
         """
         Custom destroy method to return a consistent success response.
