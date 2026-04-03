@@ -272,23 +272,30 @@ class PropertyCreateUpdateSerializer(serializers.ModelSerializer):
         return super().to_internal_value(processed_data)
 
     def validate(self, data):
-        # Dynamic validation: require nested data based on property_type
+        # Determine the property type (from input or existing instance)
         property_type = data.get('property_type')
         if not property_type and self.instance:
             property_type = self.instance.property_type
 
-        type_to_field = {
-            'house': 'house',
-            'apartment': 'apartment',
-            'plots_and_land': 'plots_and_land',
-            'commercial': 'commercial'
+        # Map property types to their respective fields and serializers
+        type_map = {
+            'house': ('house', HouseCreateUpdateSerializer),
+            'apartment': ('apartment', ApartmentCreateUpdateSerializer),
+            'plots_and_land': ('plots_and_land', PlotsAndLandCreateUpdateSerializer),
+            'commercial': ('commercial', CommercialCreateUpdateSerializer)
         }
 
-        required_field = type_to_field.get(property_type)
-        if required_field and not data.get(required_field):
-            raise serializers.ValidationError({
-                required_field: [f"This field is required when property_type is '{property_type}'."]
-            })
+        # ONLY enforce detailed validation for missing blocks during creation (POST)
+        if not self.instance and property_type in type_map:
+            field_name, serializer_class = type_map[property_type]
+            
+            if not data.get(field_name):
+                # Trigger validation on an empty dict to get detailed "field is required" errors
+                sub_serializer = serializer_class(data={}, context=self.context)
+                sub_serializer.is_valid()
+                raise serializers.ValidationError({
+                    field_name: sub_serializer.errors
+                })
 
         return data
 
