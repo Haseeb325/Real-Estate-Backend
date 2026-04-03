@@ -124,7 +124,7 @@ class SellerPropertyPagination(StandardResultsSetPagination):
     page_size = 10
     max_page_size = 50
 
-class PropertyViewSet(StandardViewSetMixin):
+class PropertyViewSet(StandardViewSetMixin, viewsets.ModelViewSet):
     """
     ViewSet for sellers to manage their properties.
     - list: Returns a list of properties for the authenticated seller.
@@ -201,11 +201,13 @@ class PropertyViewSet(StandardViewSetMixin):
         response_serializer = PropertyDetailSerializer(updated_instance, context=self.get_serializer_context())
         return success_response(data=response_serializer.data, message="Property updated successfully.", status_code=status.HTTP_200_OK)
 
+    @transaction.atomic
     def destroy(self, request, *args, **kwargs):
         """
         Custom destroy method to return a consistent success response.
         """
-        instance = self.get_object()
+        # Use filter().first() or get_object to ensure we are targeting the right record
+        instance = self.get_object() 
         property_id = instance.id
         instance.delete() # Explicitly call delete to ensure database persistence
         return success_response(data={'id': property_id}, message="Property deleted successfully.", status_code=status.HTTP_200_OK)

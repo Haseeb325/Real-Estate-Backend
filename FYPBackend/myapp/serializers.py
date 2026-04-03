@@ -221,17 +221,46 @@ class PropertyCreateUpdateSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ('id',)
 
+    def to_internal_value(self, data):
+        """
+        Restructure flat dot-notation keys (e.g., 'house.bedrooms') into 
+        nested dictionaries so the serializer can process them correctly.
+        """
+        if hasattr(data, 'dict'):
+            processed_data = data.dict()
+        else:
+            processed_data = data.copy()
+
+        nested_fields = ['house', 'apartment', 'plots_and_land', 'commercial']
+        for field in nested_fields:
+            nested_obj = {}
+            keys_to_remove = []
+            for key, value in processed_data.items():
+                if key.startswith(f"{field}."):
+                    sub_key = key.split('.', 1)[1]
+                    nested_obj[sub_key] = value
+                    keys_to_remove.append(key)
+            
+            if nested_obj:
+                processed_data[field] = nested_obj
+                for key in keys_to_remove:
+                    processed_data.pop(key)
+
+        return super().to_internal_value(processed_data)
+
     def _handle_features(self, sub_property, feature_names):
         """Helper function to get or create feature objects and set them."""
+        if isinstance(feature_names, str):
+            feature_names = [f.strip() for f in feature_names.split(',') if f.strip()]
+            
         if feature_names:
             feature_objects = []
             for name in feature_names:
                 feature, _ = Features.objects.get_or_create(name=name.strip())
                 feature_objects.append(feature)
             sub_property.features.set(feature_objects)
-        else: # If an empty list is passed, clear existing features
+        else: 
             sub_property.features.clear()
-
 
     def create(self, validated_data):
         house_data = validated_data.pop('house', None)
@@ -305,6 +334,10 @@ class PropertyCreateUpdateSerializer(serializers.ModelSerializer):
         instance = super().update(instance, validated_data)
 
         property_type = instance.property_type
+        
+        # If the user is trying to change the property_type on an existing property,
+        # you might want to prevent that or handle the deletion of the old sub-model.
+        # For now, we assume property_type remains the same during update.
 
         # Map property types to their respective data and model attribute names
         sub_property_map = {
