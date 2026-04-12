@@ -317,16 +317,18 @@ class SignInView(APIView):
             access_token,
             max_age=5*60,
             httponly=True,
-            secure=settings.DEBUG is False,
-            samesite='Lax'
+            # secure=settings.DEBUG is False,
+            secure=True,
+            samesite='None'
         )
         response.set_cookie(
             'refresh_token',
             refresh_token,
             max_age=7*24*60*60,
             httponly=True,
-            secure=settings.DEBUG is False,
-            samesite='Lax'
+            # secure=settings.DEBUG is False,
+            secure=True,
+           samesite='None'
         )
         print(refresh_token)
         print(access_token)
@@ -356,8 +358,9 @@ class RefreshAccessTokenView(APIView):
                 new_access_token,
                 max_age=5*60,
                 httponly=True,
-                secure=settings.DEBUG is False,
-                samesite='Lax'
+                # secure=settings.DEBUG is False,
+                secure=True,
+                samesite='None'
             )
             return response
         except TokenError:
