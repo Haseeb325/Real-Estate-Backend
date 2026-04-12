@@ -179,7 +179,7 @@ SESSION_COOKIE_AGE = 300  # 5 minutes (OTP-friendly)
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'myapp.authenticate.CustomJWTAuthentication',
     ),
     'DEFAULT_RENDERER_CLASSES': (
         'myapp.utils.renderers.StandardEnvelopeRenderer',
@@ -210,6 +210,10 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 
 CORS_ALLOW_CREDENTIALS = True  # Important!
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:4200",
+]
+# CORS_ALLOW_CREDENTIALS = True
 
 # For local development only
 if DEBUG:
