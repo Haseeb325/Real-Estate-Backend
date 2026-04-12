@@ -306,6 +306,7 @@ class SignInView(APIView):
                     "email": user.email,
                     "username": user.username,
                     "role": user.role,
+                    "full_name": user.full_name,
                 },
             },
             message="Login Successfully",
