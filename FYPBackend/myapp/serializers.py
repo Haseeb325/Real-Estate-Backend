@@ -73,7 +73,7 @@ class BuyerProfileSerializer(serializers.ModelSerializer):
     Serializer for the BuyerProfile model. The user field is read-only
     as it should not be changed once the profile is created.
     """
-    user = serializers.ReadOnlyField(source='user.username')
+    user = UserSerializer(read_only=True)
 
     class Meta:
         model = BuyerProfile
@@ -86,7 +86,7 @@ class SellerProfileSerializer(serializers.ModelSerializer):
     Includes a nested serializer for seller documents.
     Fields like user, verification status, and stripe ID are read-only.
     """
-    user = serializers.ReadOnlyField(source='user.username')
+    user = UserSerializer(read_only=True)
     docs = SellerDocsSerializer(read_only=True) # Nested serializer for retrieving docs
 
     class Meta:
