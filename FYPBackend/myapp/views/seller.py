@@ -1,5 +1,6 @@
 from django.http import Http404
-from rest_framework import generics, permissions, status, viewsets
+from django.db.models import Q
+from rest_framework import generics, permissions, status, viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
@@ -137,24 +138,47 @@ class PropertyViewSet(StandardViewSetMixin):
     permission_classes = [IsSeller]
     parser_classes = [MultiPartParser, FormParser]
     pagination_class = SellerPropertyPagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    
+    search_fields = ['title', 'location_text', 'property_type', 'sale_type']
+    ordering_fields = ['created_at', 'updated_at', 'sale_price', 'rent_price']
 
     def get_queryset(self):
         """
         This view returns a list of properties for the currently authenticated seller.
-        The list can be filtered by providing a 'status' query parameter.
-        e.g., /api/seller/properties/?status=pending
+        Supports filtering by status, property_type, sale_type, and price ranges.
         """
         user = self.request.user
         
-        # This view is protected by IsSeller permission, but a check is good practice.
         if not (user.is_authenticated and user.role == 'seller'):
             return Property.objects.none()
 
         queryset = Property.objects.filter(user=user)
+        params = self.request.query_params
 
-        status = self.request.query_params.get('status')
-        if status:
-            queryset = queryset.filter(status=status)
+        # Simple field filters
+        for field in ['status', 'property_type', 'sale_type']:
+            val = params.get(field)
+            if val:
+                queryset = queryset.filter(**{field: val})
+
+        # Price range filtering (Sale or Rent)
+        q_price = Q()
+        min_price = params.get('min_price')
+        max_price = params.get('max_price')
+
+        try:
+            if min_price:
+                val = float(min_price)
+                q_price &= (Q(sale_price__gte=val) | Q(rent_price__gte=val))
+            if max_price:
+                val = float(max_price)
+                q_price &= (Q(sale_price__lte=val) | Q(rent_price__lte=val))
+        except (ValueError, TypeError):
+            pass
+
+        if q_price:
+            queryset = queryset.filter(q_price)
 
         return queryset.order_by('-created_at')
 
