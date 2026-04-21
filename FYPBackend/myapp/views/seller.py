@@ -67,57 +67,68 @@ class SellerDocsUploadView(StandardAPIViewMixin, generics.RetrieveUpdateAPIView)
     permission_classes = [IsSeller]
 
     def get_object(self):
+        # Always try to get docs directly from the user's relationship first
         try:
-            seller_profile = SellerProfile.objects.get(user=self.request.user)
-            return seller_profile.docs
-        except SellerProfile.DoesNotExist:
-            raise Http404
-        
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        try:
-            instance = self.get_object()
-            serializer = self.get_serializer(instance, data=request.data, partial=partial)
-            
-            if not serializer.is_valid():
-                return error_response(message="Invalid seller docs payload", data=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
-            
-            try:
-                already_set_user = SellerDocs.objects.get(user=self.request.user)
-                if already_set_user:
-                    self.perform_update(serializer)
-                    return success_response(serializer.data, message="Seller docs updated successfully.", status_code=status.HTTP_200_OK)
-            except Exception as e:
-                logger.error(f"Failed to update SellerDocs for user {request.user.id}: {str(e)}")
-                return error_response(message="Failed to save document. Please try again.", status_code=status.HTTP_400_BAD_REQUEST)
+            return self.request.user.seller_docs
+        except SellerDocs.DoesNotExist:
+            return None
 
-            
-        except Http404:
-            # If docs don't exist, create new ones
-            serializer = self.get_serializer(data=request.data)
-            
+    def update(self, request, *args, **kwargs):
+        # Determine if this is a partial update (PATCH)
+        partial = kwargs.pop('partial', True) 
+        instance = self.get_object()
+
+        if instance:
+            # --- UPDATE EXISTING DOCS ---
+            serializer = self.get_serializer(instance, data=request.data, partial=partial)
             if not serializer.is_valid():
-                return error_response(message="Invalid seller docs payload", data=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
+                return error_response(
+                    message="Invalid seller docs payload", 
+                    data=serializer.errors, 
+                    status_code=status.HTTP_400_BAD_REQUEST
+                )
             
             try:
+                self.perform_update(serializer)
+                return success_response(
+                    serializer.data, 
+                    message="Seller docs updated successfully.", 
+                    status_code=status.HTTP_200_OK
+                )
+            except Exception as e:
+                logger.error(f"Update failed for user {request.user.id}: {str(e)}")
+                return error_response(message="Failed to save document.", status_code=status.HTTP_400_BAD_REQUEST)
+
+        else:
+            # --- CREATE NEW DOCS ---
+            serializer = self.get_serializer(data=request.data)
+            if not serializer.is_valid():
+                return error_response(
+                    message="Invalid seller docs payload", 
+                    data=serializer.errors, 
+                    status_code=status.HTTP_400_BAD_REQUEST
+                )
+            
+            try:
+                # Create the docs record
                 docs = SellerDocs.objects.create(
                     user=request.user,
                     **serializer.validated_data
                 )
-                seller = SellerProfile.objects.get(user=request.user)
-                seller.docs = docs
-                seller.save()
-                return success_response(SellerDocsSerializer(docs).data, message="Seller docs created successfully.", status_code=status.HTTP_201_CREATED)
-            except SellerProfile.DoesNotExist:
-                docs.delete()
-                logger.error(f"SellerProfile not found for user {request.user.id}")
-                return error_response(message="Seller profile not found.", status_code=status.HTTP_404_NOT_FOUND)
+                
+                # Ensure it's linked to the SellerProfile
+                seller_profile, created = SellerProfile.objects.get_or_create(user=request.user)
+                seller_profile.docs = docs
+                seller_profile.save()
+
+                return success_response(
+                    SellerDocsSerializer(docs).data, 
+                    message="Seller docs created successfully.", 
+                    status_code=status.HTTP_201_CREATED
+                )
             except Exception as e:
-                logger.error(f"Failed to create SellerDocs for user {request.user.id}: {str(e)}")
-                return error_response(message="Failed to upload document. Please try again.", status_code=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            logger.error(f"Unexpected error in SellerDocsUploadView for user {request.user.id}: {str(e)}")
-            return error_response(message="An unexpected error occurred.", status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                logger.error(f"Creation failed for user {request.user.id}: {str(e)}")
+                return error_response(message="Failed to upload document.", status_code=status.HTTP_400_BAD_REQUEST)
 
 
 
