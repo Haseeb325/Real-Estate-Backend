@@ -22,7 +22,7 @@ from myapp.views.user import UserDetailView
 from myapp.views.auth import *
 from myapp.views.buyer import BuyerProfileDetailView
 from myapp.views.seller import SellerProfileDetailView, SellerDocsUploadView, PropertyViewSet
-from myapp.views.property import PropertyListAPIView, PropertyDetailAPIView
+from myapp.views.property import PropertyListAPIView, PropertyDetailAPIView, PropertyAvailabilityAPIView
 from myapp.views.change_password import ChangePasswordView
 from myapp.views.chat import ChatSessionListCreateAPIView, ChatMessageListAPIView
 from myapp.views.appointment import SellerAvailabilityViewSet, AppointmentViewSet
@@ -75,6 +75,8 @@ urlpatterns = [
         # Property Browsing
         path('properties/browse/', PropertyListAPIView.as_view(), name='property-browse'),
         path('properties/browse/<uuid:pk>/', PropertyDetailAPIView.as_view(), name='property-detail-browse'),
+        path('properties/browse/<uuid:pk>/availability/', PropertyAvailabilityAPIView.as_view(), name='property-availability'),
+
         
         # Chat
         path('chat/sessions/', ChatSessionListCreateAPIView.as_view(), name='chat-session-list-create'),

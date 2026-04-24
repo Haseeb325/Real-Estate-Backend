@@ -1,10 +1,10 @@
 from django.db.models import Q
 from rest_framework import generics, permissions
 from rest_framework.filters import SearchFilter, OrderingFilter
-from ..models import Property
-from ..serializers import PropertyListSerializer, PropertyDetailSerializer
+from ..serializers import PropertyListSerializer, PropertyDetailSerializer, SellerAvailabilitySerializer
 from ..utils.mixins import StandardAPIViewMixin
 from ..utils.pagination import StandardResultsSetPagination
+from ..models import Property, SellerAvailability
 
 
 class PropertyPagination(StandardResultsSetPagination):
@@ -178,3 +178,16 @@ class PropertyDetailAPIView(StandardAPIViewMixin, generics.RetrieveAPIView):
             'plots_and_land',
             'commercial'
         ).prefetch_related('images', 'house__features', 'apartments__features', 'plots_and_land__features', 'commercial__features')
+
+class PropertyAvailabilityAPIView(StandardAPIViewMixin, generics.ListAPIView):
+    """
+    get:
+    Returns the seller availability for a specific property.
+    This is used by buyers to see when a property is available for viewing.
+    """
+    serializer_class = SellerAvailabilitySerializer
+
+    def get_queryset(self):
+        property_id = self.kwargs.get('pk')
+        return SellerAvailability.objects.filter(property_id=property_id)
+
