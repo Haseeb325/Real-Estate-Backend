@@ -544,37 +544,46 @@ class SellerAvailabilitySerializer(serializers.ModelSerializer):
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
-    """
-    Serializer for creating and viewing appointments.
-    """
-    buyer = serializers.ReadOnlyField(source='buyer.username')
-    seller = serializers.ReadOnlyField(source='seller.username')
+    buyer_name = serializers.ReadOnlyField(source='buyer.username')
+    seller_name = serializers.ReadOnlyField(source='seller.username')
     property_title = serializers.ReadOnlyField(source='property.title')
+    
+    # Add this to help frontend show/hide buttons easily
+    available_actions = serializers.SerializerMethodField()
 
     class Meta:
         model = Appointment
         fields = [
-            'id', 'property', 'property_title', 'buyer', 'seller', 
-            'start_time', 'end_time', 'status', 'notes'
+            'id', 'property', 'property_title', 
+            'buyer', 'buyer_name',  # Include both ID and Name
+            'seller', 'seller_name', 
+            'start_time', 'end_time', 'status', 'notes',
+            'available_actions'
         ]
         read_only_fields = ['id', 'status', 'buyer', 'seller', 'property_title']
 
-    def validate(self, data):
+    def get_available_actions(self, obj):
         """
-        Validations for appointment creation:
-        1. End time must be after start time.
-        2. The requested timeslot must be available.
+        Returns which actions the CURRENT user can perform on this appointment.
         """
-        # 1. Check if end time is after start time
-        if data['start_time'] >= data['end_time']:
-            raise serializers.ValidationError("End time must be after start time.")
-
-        # 2. Add validation for availability (this is a placeholder for the logic)
-        # The actual checking will be more complex and likely done in the view
-        # or a dedicated service function, as it needs to check against
-        # SellerAvailability and existing Appointments.
+        user = self.context['request'].user
+        actions = []
         
-        return data
+        # Cancellation logic (Both can cancel unless completed/already cancelled)
+        if obj.status not in ['completed', 'cancelled']:
+            if user == obj.buyer or user == obj.seller:
+                actions.append('cancel')
+
+        # Confirmation logic (Only seller can confirm pending)
+        if obj.status == 'pending' and user == obj.seller:
+            actions.append('confirm')
+
+        # Completion logic (Both can complete confirmed)
+        if obj.status == 'confirmed':
+            if user == obj.buyer or user == obj.seller:
+                actions.append('complete')
+                
+        return actions
 
 
 # --- Payment & Rental Serializers ---
