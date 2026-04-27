@@ -544,23 +544,31 @@ class SellerAvailabilitySerializer(serializers.ModelSerializer):
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
+    property_details = PropertyListSerializer(source='property', read_only=True)
+    buyer_details = UserSerializer(source='buyer', read_only=True)
+    seller_details = UserSerializer(source='seller', read_only=True)
+
     buyer_name = serializers.ReadOnlyField(source='buyer.username')
     seller_name = serializers.ReadOnlyField(source='seller.username')
     property_title = serializers.ReadOnlyField(source='property.title')
-    
+
     # Add this to help frontend show/hide buttons easily
     available_actions = serializers.SerializerMethodField()
 
     class Meta:
         model = Appointment
         fields = [
-            'id', 'property', 'property_title', 
-            'buyer', 'buyer_name',  # Include both ID and Name
-            'seller', 'seller_name', 
+            'id', 
+            'property', 'property_details', 'property_title',
+            'buyer', 'buyer_details', 'buyer_name',
+            'seller', 'seller_details', 'seller_name',
             'start_time', 'end_time', 'status', 'notes',
             'available_actions'
         ]
-        read_only_fields = ['id', 'status', 'buyer', 'seller', 'property_title']
+        read_only_fields = [
+            'id', 'status', 'buyer', 'seller', 'property_title',
+            'property_details', 'buyer_details', 'seller_details'
+        ]
 
     def get_available_actions(self, obj):
         """
