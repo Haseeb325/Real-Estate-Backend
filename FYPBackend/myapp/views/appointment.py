@@ -186,7 +186,9 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         appointment.status = 'confirmed'
         appointment.save()
         return success_response(
-            data={'appointment': AppointmentSerializer(appointment).data},
+            # data={'appointment': AppointmentSerializer(appointment).data},
+            # To this:
+       data={'appointment': AppointmentSerializer(appointment, context={'request': request}).data} ,
             message='Appointment confirmed successfully.',
             status_code=status.HTTP_200_OK,
         )
@@ -211,7 +213,8 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         appointment.status = 'cancelled'
         appointment.save()
         return success_response(
-            data={'appointment': AppointmentSerializer(appointment).data},
+            # data={'appointment': AppointmentSerializer(appointment).data}
+            data={'appointment': AppointmentSerializer(appointment, context={'request': request}).data},
             message='Appointment cancelled successfully.',
             status_code=status.HTTP_200_OK,
         )
@@ -237,7 +240,8 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         appointment.status = 'completed'
         appointment.save()
         return success_response(
-            data={'appointment': AppointmentSerializer(appointment).data},
+            # data={'appointment': AppointmentSerializer(appointment).data}
+            data={'appointment': AppointmentSerializer(appointment, context={'request': request}).data},
             message='Congratulations on completing the appointment!',
             status_code=status.HTTP_200_OK,
         )
