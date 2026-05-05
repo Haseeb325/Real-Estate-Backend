@@ -207,16 +207,16 @@ class AdminFinanceViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
-        sales_count = Payment.objects.filter(payment_type='sale', status='succeeded').count()
+        sales_count = Payment.objects.filter(payment_type='sale', status='succeeded', property__isnull=False).count()
         active_rentings = RentalAgreement.objects.filter(status='active').count()
 
         revenue_sales = Payment.objects.filter(
-            payment_type='sale', status='succeeded'
+            payment_type='sale', status='succeeded', property__isnull=False
         ).aggregate(total=Sum('amount'))['total'] or 0
 
         revenue_rent = Payment.objects.filter(
-            payment_type__in=['rent', 'security_deposit'], 
-            status='succeeded'
+            payment_type__in=['rent', 'security_deposit'],
+            status='succeeded', property__isnull=False
         ).aggregate(total=Sum('amount'))['total'] or 0
 
         return success_response(

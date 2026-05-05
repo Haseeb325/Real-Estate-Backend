@@ -519,7 +519,10 @@ class Payment(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Payment {self.id} for {self.property.title} by {self.buyer.username}"
+        # Handle cases where property or buyer might have been deleted (SET_NULL)
+        prop_title = self.property.title if self.property else "Deleted Property"
+        buyer_name = self.buyer.username if self.buyer else "Deleted User"
+        return f"Payment {self.id} for {prop_title} by {buyer_name}"
 
 class Receipt(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
