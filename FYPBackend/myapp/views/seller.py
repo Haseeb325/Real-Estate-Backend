@@ -254,3 +254,41 @@ class PropertyViewSet(StandardViewSetMixin):
             return success_response(data=serializer.data, message="Image uploaded successfully.", status_code=status.HTTP_201_CREATED)
         else:
             return error_response(message="Invalid image payload", data=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'])
+    def pause(self, request, pk=None):
+        """
+        Allows a seller to pause their active property listing.
+        """
+        property_instance = self.get_object()
+        if property_instance.status != 'active':
+            return error_response(
+                message=f"Only active properties can be paused. Current status: {property_instance.status}", 
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        property_instance.status = 'pause'
+        property_instance.save()
+        return success_response(
+            data=PropertyDetailSerializer(property_instance, context={'request': request}).data, 
+            message="Property paused successfully."
+        )
+
+    @action(detail=True, methods=['post'])
+    def reactivate(self, request, pk=None):
+        """
+        Allows a seller to reactivate a paused property listing.
+        """
+        property_instance = self.get_object()
+        if property_instance.status != 'pause':
+            return error_response(
+                message="Only paused properties can be reactivated.", 
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        property_instance.status = 'active'
+        property_instance.save()
+        return success_response(
+            data=PropertyDetailSerializer(property_instance, context={'request': request}).data, 
+            message="Property reactivated successfully."
+        )
