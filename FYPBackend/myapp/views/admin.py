@@ -71,6 +71,10 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         status_param = self.request.query_params.get('status')
         if status_param:
             queryset = queryset.filter(status=status_param)
+
+        # Exclude the current admin user from the response
+        if self.request.user.is_authenticated and self.request.user.role == 'admin':
+            queryset = queryset.exclude(id=self.request.user.id)
             
         return queryset
 
