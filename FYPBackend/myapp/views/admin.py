@@ -118,6 +118,11 @@ class AdminPropertyViewSet(viewsets.ModelViewSet):
         if status_param:
             queryset = queryset.filter(status=status_param)
             
+        # Filter by property type (house, apartment, plots_and_land, commercial)
+        property_type = self.request.query_params.get('property_type')
+        if property_type:
+            queryset = queryset.filter(property_type=property_type)
+            
         # Filter for verification requests (Step 4 Listing Verification)
         # Usage: /api/admin/properties/?verification_pending=true
         verification_pending = self.request.query_params.get('verification_pending')
