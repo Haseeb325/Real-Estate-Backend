@@ -34,12 +34,12 @@ class CustomUserAdmin(UserAdmin):
     def suspend_users(self, request, queryset):
         # Never suspend superusers
         not_super = queryset.exclude(is_superuser=True)
-        updated = not_super.update(status=UserStatus.SUSPENDED, is_active=False)
+        updated = not_super.update(status=UserStatus.SUSPENDED.value, is_active=False)
         self.message_user(request, f"{updated} user(s) suspended.", level=messages.SUCCESS)
     suspend_users.short_description = "Suspend selected users"
 
     def activate_users(self, request, queryset):
-        updated = queryset.update(status=UserStatus.ACTIVE, is_active=True)
+        updated = queryset.update(status=UserStatus.ACTIVE.value, is_active=True)
         self.message_user(request, f"{updated} user(s) activated.", level=messages.SUCCESS)
     activate_users.short_description = "Activate selected users"
 

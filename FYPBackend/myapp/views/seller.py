@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from ..utils.api_response import success_response, error_response
 from ..utils.mixins import StandardAPIViewMixin, StandardViewSetMixin
 from ..utils.pagination import StandardResultsSetPagination
-from ..models import SellerProfile , SellerDocs, Property, PropertyImage
+from ..models import SellerProfile , SellerDocs, Property, PropertyImage, VerificationStatus
 from ..permissions import IsSeller
 from ..serializers import (
     SellerProfileSerializer, 
@@ -92,7 +92,7 @@ class SellerDocsUploadView(StandardAPIViewMixin, generics.RetrieveUpdateAPIView)
                 self.perform_update(serializer)
                 # Set verification status to pending upon document update
                 seller_profile, _ = SellerProfile.objects.get_or_create(user=request.user)
-                seller_profile.verification_status = VerificationStatus.PENDING
+                seller_profile.verification_status = VerificationStatus.PENDING.value
                 seller_profile.save()
 
                 return success_response(
@@ -124,7 +124,7 @@ class SellerDocsUploadView(StandardAPIViewMixin, generics.RetrieveUpdateAPIView)
                 # Ensure it's linked to the SellerProfile
                 seller_profile, created = SellerProfile.objects.get_or_create(user=request.user)
                 seller_profile.docs = docs
-                seller_profile.verification_status = VerificationStatus.PENDING
+                seller_profile.verification_status = VerificationStatus.PENDING.value
                 seller_profile.save()
 
                 return success_response(

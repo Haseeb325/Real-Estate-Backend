@@ -29,7 +29,7 @@ class AdminDashboardStatsView(StandardAPIViewMixin, APIView):
         
         # Pending verifications
         # Sellers who have uploaded docs but are not verified yet
-        pending_sellers = SellerProfile.objects.filter(verification_status=VerificationStatus.PENDING).count()
+        pending_sellers = SellerProfile.objects.filter(verification_status=VerificationStatus.PENDING.value).count()
         # Properties that are not verified
         pending_properties = Property.objects.filter(is_verified=False).count()
         
@@ -48,7 +48,7 @@ class AdminDashboardStatsView(StandardAPIViewMixin, APIView):
         )
 
 # Step 2: User Management
-class AdminUserViewSet(viewsets.ModelViewSet):
+class AdminUserViewSet(StandardAPIViewMixin, viewsets.ModelViewSet):
     """
     Admin view to manage users.
     Supports search by username/email and filtering by role/status.
@@ -81,7 +81,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def suspend(self, request, pk=None):
         user = self.get_object()
-        user.status = UserStatus.SUSPENDED
+        user.status = UserStatus.SUSPENDED.value
         user.is_active = False
         user.save()
         return success_response(data={'user': user.username}, message=f'User {user.username} suspended.', status_code=status.HTTP_200_OK)
@@ -89,13 +89,13 @@ class AdminUserViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def activate(self, request, pk=None):
         user = self.get_object()
-        user.status = UserStatus.ACTIVE
+        user.status = UserStatus.ACTIVE.value
         user.is_active = True
         user.save()
         return success_response(data={'user': user.username}, message=f'User {user.username} activated.', status_code=status.HTTP_200_OK)
 
 # Step 3 & 4: Property Management & Listing Verification
-class AdminPropertyViewSet(viewsets.ModelViewSet):
+class AdminPropertyViewSet(StandardAPIViewMixin, viewsets.ModelViewSet):
     """
     Admin view to manage properties.
     Includes stats, filtering, suspension, and verification logic.
@@ -180,7 +180,7 @@ class AdminPropertyViewSet(viewsets.ModelViewSet):
         return success_response(data={'property_id': prop.id}, message='Property activated.', status_code=status.HTTP_200_OK)
 
 # Step 4: User (Seller) Verification
-class AdminSellerVerificationViewSet(viewsets.ReadOnlyModelViewSet):
+class AdminSellerVerificationViewSet(StandardAPIViewMixin, viewsets.ReadOnlyModelViewSet):
     """
     Viewset specifically for Seller Verification requests.
     Lists sellers who have uploaded documents.
@@ -191,18 +191,18 @@ class AdminSellerVerificationViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         # Return sellers whose verification is currently pending
-        return SellerProfile.objects.filter(verification_status=VerificationStatus.PENDING).order_by('-created_at')
+        return SellerProfile.objects.filter(verification_status=VerificationStatus.PENDING.value).order_by('-created_at')
 
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
         profile = self.get_object()
         profile.is_verified_seller = True
-        profile.verification_status = VerificationStatus.APPROVED
+        profile.verification_status = VerificationStatus.APPROVED.value
         profile.save()
 
         # Activate the associated user account
         user = profile.user
-        user.status = UserStatus.ACTIVE
+        user.status = UserStatus.ACTIVE.value
         user.is_active = True
         user.save()
         return success_response(data={'seller_id': profile.user.id}, message='Seller verified successfully.', status_code=status.HTTP_200_OK)
@@ -211,12 +211,12 @@ class AdminSellerVerificationViewSet(viewsets.ReadOnlyModelViewSet):
     def reject(self, request, pk=None):
         profile = self.get_object()
         profile.is_verified_seller = False
-        profile.verification_status = VerificationStatus.REJECTED
+        profile.verification_status = VerificationStatus.REJECTED.value
         profile.save()
 
         # Ensure the user remains/becomes inactive if rejected
         user = profile.user
-        user.status = UserStatus.INACTIVE
+        user.status = UserStatus.INACTIVE.value
         user.is_active = False
         user.save()
         return success_response(data={'seller_id': profile.user.id}, message='Seller verification rejected.', status_code=status.HTTP_200_OK)
