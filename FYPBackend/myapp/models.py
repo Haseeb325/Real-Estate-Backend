@@ -27,8 +27,8 @@ class CustomUserManager(BaseUserManager):
         if status not in valid_values:
             raise ValueError(f"Invalid status: {status}")
 
-        # Ensure is_active is synchronized with the status
-        is_active = extra_fields.pop('is_active', status == UserStatus.ACTIVE)
+        # Ensure is_active is True by default so users can log in even if pending verification
+        is_active = extra_fields.pop('is_active', True)
 
         user = self.model(
             email=email,
