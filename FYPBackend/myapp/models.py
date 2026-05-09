@@ -90,6 +90,12 @@ class UserStatus(models.TextChoices):
     SUSPENDED = "suspended","Suspended"
     INACTIVE = "inactive","Inactive"
 
+class VerificationStatus(models.TextChoices):
+    NONE = "none", "None"
+    PENDING = "pending", "Pending"
+    APPROVED = "approved", "Approved"
+    REJECTED = "rejected", "Rejected"
+
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
@@ -160,6 +166,7 @@ class SellerProfile(models.Model):
     state = models.CharField(max_length=100, blank=True)
     country = models.CharField(max_length=100, blank=True)
     license_number = models.CharField(max_length=100, blank=True)
+    verification_status = models.CharField(max_length=20, choices=VerificationStatus.choices, default=VerificationStatus.NONE)
     is_verified_seller = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)

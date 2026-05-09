@@ -7,7 +7,7 @@ from ..utils.api_response import success_response, error_response
 from ..utils.mixins import StandardAPIViewMixin
 from django.db.models import Sum
 from ..models import (
-    CustomUser, Property, SellerProfile, Payment, RentalAgreement, UserStatus
+    CustomUser, Property, SellerProfile, Payment, RentalAgreement, UserStatus, VerificationStatus
 )
 from ..serializers import (
     UserSerializer, PropertyDetailSerializer, PropertyListSerializer,
@@ -29,7 +29,7 @@ class AdminDashboardStatsView(StandardAPIViewMixin, APIView):
         
         # Pending verifications
         # Sellers who have uploaded docs but are not verified yet
-        pending_sellers = SellerProfile.objects.filter(is_verified_seller=False).exclude(docs=None).count()
+        pending_sellers = SellerProfile.objects.filter(verification_status=VerificationStatus.PENDING).count()
         # Properties that are not verified
         pending_properties = Property.objects.filter(is_verified=False).count()
         
@@ -190,13 +190,14 @@ class AdminSellerVerificationViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = AdminPagination
 
     def get_queryset(self):
-        # Return sellers who have docs but are not verified (or all with docs)
-        return SellerProfile.objects.exclude(docs=None).order_by('-created_at')
+        # Return sellers whose verification is currently pending
+        return SellerProfile.objects.filter(verification_status=VerificationStatus.PENDING).order_by('-created_at')
 
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
         profile = self.get_object()
         profile.is_verified_seller = True
+        profile.verification_status = VerificationStatus.APPROVED
         profile.save()
 
         # Activate the associated user account
@@ -210,6 +211,7 @@ class AdminSellerVerificationViewSet(viewsets.ReadOnlyModelViewSet):
     def reject(self, request, pk=None):
         profile = self.get_object()
         profile.is_verified_seller = False
+        profile.verification_status = VerificationStatus.REJECTED
         profile.save()
 
         # Ensure the user remains/becomes inactive if rejected
