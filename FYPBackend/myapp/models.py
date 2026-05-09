@@ -8,11 +8,15 @@ from cloudinary.models import CloudinaryField
 
 class CustomUserManager(BaseUserManager):
 
-    def create_user(self, email, username, full_name, role, password=None, status=None, is_email_verified=False, **extra_fields):
+    def create_user(self, email, username, full_name, role=None, password=None, status=None, is_email_verified=False, **extra_fields):
         if not email:
             raise ValueError("Email must be set")
         if not username:
             raise ValueError("Username must be set")
+
+        # Default role to BUYER if not provided (e.g., via Django Admin)
+        if role is None:
+            role = UserRole.BUYER
 
         email = self.normalize_email(email)
 
@@ -159,7 +163,7 @@ class SellerProfile(models.Model):
     stripe_account_id = models.CharField(max_length=255, blank=True, null=True)
     phone = models.CharField(max_length=20)
     profile_image = CloudinaryField('image', blank=True, null=True)
-    docs = models.OneToOneField(SellerDocs, on_delete=models.CASCADE, blank=True, null=True)
+    docs = models.OneToOneField(SellerDocs, on_delete=models.SET_NULL, blank=True, null=True)
     company_name = models.CharField(max_length=150, blank=True)
     city = models.CharField(max_length=100, blank=True)
     address =models.TextField(blank=True , null=True)

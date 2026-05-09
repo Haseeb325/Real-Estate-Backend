@@ -27,7 +27,7 @@ class CustomUserAdmin(UserAdmin):
     # Add this to allow creating users in Admin
     add_fieldsets = (
         (None, {'classes': ('wide',),
-                'fields': ('email', 'username', 'full_name', 'password', 'confirm_password')}),
+                'fields': ('email', 'username', 'full_name', 'role', 'password')}),
     )
 
 
