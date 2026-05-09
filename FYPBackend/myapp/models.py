@@ -16,13 +16,19 @@ class CustomUserManager(BaseUserManager):
 
         email = self.normalize_email(email)
 
-        # Default to ACTIVE if no status provided; validate if provided
+        # Determine default status based on role if not explicitly provided
         if status is None:
-            status = UserStatus.ACTIVE
-        else:
-            valid_values = [choice[0] for choice in UserStatus.choices]
-            if status not in valid_values:
-                raise ValueError(f"Invalid status: {status}")
+            if role == UserRole.SELLER:
+                status = UserStatus.INACTIVE
+            else:
+                status = UserStatus.ACTIVE
+        
+        valid_values = [choice[0] for choice in UserStatus.choices]
+        if status not in valid_values:
+            raise ValueError(f"Invalid status: {status}")
+
+        # Ensure is_active is synchronized with the status
+        is_active = extra_fields.pop('is_active', status == UserStatus.ACTIVE)
 
         user = self.model(
             email=email,
@@ -30,6 +36,7 @@ class CustomUserManager(BaseUserManager):
             full_name=full_name,
             role=role,
             status=status,
+            is_active=is_active,
             is_email_verified=is_email_verified,
             **extra_fields
         )
@@ -81,6 +88,7 @@ class UserRole(models.TextChoices):
 class UserStatus(models.TextChoices):
     ACTIVE = "active","Active"
     SUSPENDED = "suspended","Suspended"
+    INACTIVE = "inactive","Inactive"
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

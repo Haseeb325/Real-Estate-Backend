@@ -198,6 +198,12 @@ class AdminSellerVerificationViewSet(viewsets.ReadOnlyModelViewSet):
         profile = self.get_object()
         profile.is_verified_seller = True
         profile.save()
+
+        # Activate the associated user account
+        user = profile.user
+        user.status = UserStatus.ACTIVE
+        user.is_active = True
+        user.save()
         return success_response(data={'seller_id': profile.user.id}, message='Seller verified successfully.', status_code=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'])
@@ -205,6 +211,12 @@ class AdminSellerVerificationViewSet(viewsets.ReadOnlyModelViewSet):
         profile = self.get_object()
         profile.is_verified_seller = False
         profile.save()
+
+        # Ensure the user remains/becomes inactive if rejected
+        user = profile.user
+        user.status = UserStatus.INACTIVE
+        user.is_active = False
+        user.save()
         return success_response(data={'seller_id': profile.user.id}, message='Seller verification rejected.', status_code=status.HTTP_200_OK)
 
 # Step 5: Financials
