@@ -35,7 +35,7 @@ import os
 # --- CSRF & Session / CORS configuration ---
 
 
-PROD_DOMAIN = "real-estate-backend-production-0831.up.railway.app"
+PROD_DOMAIN = "real-estate-backend-production-d611.up.railway.app"
 # Admin CSRF and secure cookies
 CSRF_TRUSTED_ORIGINS = [f"https://{PROD_DOMAIN}"]
 CSRF_COOKIE_SECURE = True
