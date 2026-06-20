@@ -14,7 +14,7 @@ def send_email_via_brevo(to_email, subject, html_content):
                 "Content-Type": "application/json",
             },
             json={
-                "sender": {"name": "Real Estate App", "email": os.environ.get("BREVO_SMTP_USER")},
+                "sender": {"name": "Real Estate App", "email": os.environ.get("EMAIL_HOST_USER")},
                 "to": [{"email": to_email}],
                 "subject": subject,
                 "htmlContent": html_content,
