@@ -1,7 +1,9 @@
 from celery import shared_task
 import logging
 import os
+# pyrefly: ignore [missing-import]
 from sendgrid import SendGridAPIClient
+# pyrefly: ignore [missing-import]
 from sendgrid.helpers.mail import Mail
 
 logger = logging.getLogger(__name__)
