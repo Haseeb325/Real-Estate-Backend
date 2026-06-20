@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'myapp',
     'cloudinary',
      'rest_framework_simplejwt.token_blacklist',
+    'anymail',
 ]
 
 MIDDLEWARE = [
@@ -243,7 +244,11 @@ CELERY_ENABLE_UTC = True
 
 
 # Email settings
-# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
+ANYMAIL = {
+    "RESEND_API_KEY": os.environ.get("RESEND_API_KEY"),
+}
+DEFAULT_FROM_EMAIL = "onboarding@resend.dev"
 
 # EMAIL_HOST = "smtp.gmail.com"
 # EMAIL_PORT = 587
@@ -255,7 +260,6 @@ CELERY_ENABLE_UTC = True
 
 # EMAIL_TIMEOUT = 30
 # DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-
 
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'),
