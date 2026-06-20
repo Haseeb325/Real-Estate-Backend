@@ -64,7 +64,6 @@ INSTALLED_APPS = [
     'myapp',
     'cloudinary',
      'rest_framework_simplejwt.token_blacklist',
-    'anymail',
 ]
 
 MIDDLEWARE = [
