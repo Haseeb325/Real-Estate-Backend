@@ -322,7 +322,7 @@ class PlotsAndLand(models.Model):
         ("other", "Other")
     )
     permitted_use = models.CharField(max_length=20, choices=PERMITTED_USE, default="zoning")
-    ownership= models.CharField(max_length=20)
+    ownership= models.CharField(max_length=20, blank=True, null=True)
     area = models.IntegerField()
     frontage = models.CharField(max_length=20)
     depth = models.CharField(max_length=20)
@@ -365,7 +365,7 @@ class Commercial(models.Model):
     commercial_type = models.CharField(max_length=20, choices=COMMERCIAL_TYPE, default="commercial")
     # Store subtype as free text but validate it belongs to the selected commercial_type
     commercial_subtype = models.CharField(max_length=100, blank=True, null=True)
-    ownership = models.CharField(max_length=20)
+    ownership = models.CharField(max_length=20, blank=True, null=True)
     builtup_area = models.IntegerField()
     useable_area = models.CharField(max_length=20)
     floor_number = models.CharField(max_length=20)

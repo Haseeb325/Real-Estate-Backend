@@ -94,3 +94,47 @@ class ChatMessageListAPIView(StandardAPIViewMixin, generics.ListAPIView):
             # This is a security measure to prevent leaking information about session existence.
             return ChatMessage.objects.none()
 
+
+class MarkMessagesReadAPIView(StandardAPIViewMixin, generics.UpdateAPIView):
+    """
+    patch:
+    Mark specific messages as read.
+    Expects a JSON payload: {"message_ids": ["uuid-1", "uuid-2"]}
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, *args, **kwargs):
+        session_id = self.kwargs.get('session_id')
+        message_ids = request.data.get('message_ids', [])
+        
+        if not message_ids or not isinstance(message_ids, list):
+            return error_response(message="Please provide a list of message_ids.", status_code=status.HTTP_400_BAD_REQUEST)
+
+        user = request.user
+        
+        try:
+            session = ChatSession.objects.get(Q(id=session_id) & (Q(buyer=user) | Q(property__user=user)))
+        except ChatSession.DoesNotExist:
+            return error_response(message="Chat session not found.", status_code=status.HTTP_404_NOT_FOUND)
+
+        # Mark them as read, ensuring they belong to the session and were sent by the OTHER person
+        updated_count = ChatMessage.objects.filter(
+            chat_session=session,
+            id__in=message_ids,
+            is_read=False
+        ).exclude(sender=user).update(is_read=True)
+
+        if updated_count > 0:
+            from channels.layers import get_channel_layer
+            from asgiref.sync import async_to_sync
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f'chat_{session_id}',
+                {
+                    'type': 'messages_read',
+                    'message_ids': message_ids
+                }
+            )
+
+        return success_response(data={"updated_count": updated_count}, message="Messages marked as read.", status_code=status.HTTP_200_OK)
+

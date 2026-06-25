@@ -110,6 +110,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'timestamp': timestamp
         }))
 
+    async def messages_read(self, event):
+        """
+        Handler for the 'messages_read' event broadcasted by the REST API.
+        """
+        await self.send(text_data=json.dumps({
+            'type': 'messages_read',
+            'message_ids': event['message_ids']
+        }))
+
     @database_sync_to_async
     def get_chat_session(self, session_id):
         try:

@@ -24,7 +24,7 @@ from myapp.views.buyer import BuyerProfileDetailView
 from myapp.views.seller import SellerProfileDetailView, SellerDocsUploadView, PropertyViewSet
 from myapp.views.property import PropertyListAPIView, PropertyDetailAPIView, PropertyAvailabilityAPIView
 from myapp.views.change_password import ChangePasswordView
-from myapp.views.chat import ChatSessionListCreateAPIView, ChatMessageListAPIView
+from myapp.views.chat import ChatSessionListCreateAPIView, ChatMessageListAPIView, MarkMessagesReadAPIView
 from myapp.views.appointment import SellerAvailabilityViewSet, AppointmentViewSet
 from myapp.views.payment import MockPaymentView, RentalAgreementViewSet, PaymentViewSet
 from myapp.views.admin import (
@@ -81,6 +81,7 @@ urlpatterns = [
         # Chat
         path('chat/sessions/', ChatSessionListCreateAPIView.as_view(), name='chat-session-list-create'),
         path('chat/sessions/<uuid:session_id>/messages/', ChatMessageListAPIView.as_view(), name='chat-message-list'),
+        path('chat/sessions/<uuid:session_id>/messages/read/', MarkMessagesReadAPIView.as_view(), name='chat-message-mark-read'),
 
         # Payment
         path('payments/process/', MockPaymentView.as_view(), name='payment-process'),
