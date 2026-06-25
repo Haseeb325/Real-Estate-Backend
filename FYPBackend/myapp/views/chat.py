@@ -85,7 +85,25 @@ class ChatMessageListAPIView(StandardAPIViewMixin, generics.ListAPIView):
             
             # Optimization: Mark messages from the *other* party as read.
             # This prevents a user from marking their own messages as read.
-            session.messages.filter(is_read=False).exclude(sender=user).update(is_read=True)
+            unread_messages = session.messages.filter(is_read=False).exclude(sender=user)
+            unread_ids = list(unread_messages.values_list('id', flat=True))
+            
+            if unread_ids:
+                unread_messages.update(is_read=True)
+                # Broadcast WebSocket event so the SENDER sees double blue ticks
+                try:
+                    from channels.layers import get_channel_layer
+                    from asgiref.sync import async_to_sync
+                    channel_layer = get_channel_layer()
+                    async_to_sync(channel_layer.group_send)(
+                        f'chat_{session_id}',
+                        {
+                            'type': 'messages_read',
+                            'message_ids': [str(uid) for uid in unread_ids]
+                        }
+                    )
+                except Exception:
+                    pass  # Don't break message loading if WS broadcast fails
 
             return session.messages.order_by('timestamp')
             
