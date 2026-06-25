@@ -1,4 +1,5 @@
 import json
+from django.utils import timezone
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from .models import ChatMessage, ChatSession, CustomUser
@@ -96,6 +97,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }
         )
 
+        # Also notify the RECIPIENT via their global notification channel
+        # so they receive a beep/notification even when the chat screen is not open
+        buyer_id = str(self.chat_session.buyer_id)
+        seller_id = str(self.chat_session.property.user_id)
+        recipient_id = seller_id if str(sender.id) == buyer_id else buyer_id
+
+        await self.channel_layer.group_send(
+            f'notifications_{recipient_id}',
+            {
+                'type': 'send_notification',
+                'event_type': 'new_message',
+                'session_id': str(self.chat_session.id),
+                'sender_username': sender.username,
+                'message': message.content,
+            }
+        )
+
     # Receive message from room group
     # This method is triggered by group_send for every connected user in the group
     async def chat_message(self, event):
@@ -148,7 +166,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
 class NotificationConsumer(AsyncWebsocketConsumer):
     """
     Handles global notifications for a user (e.g., 'You have a new message').
-    Frontend should connect to this when the user logs in.
+    Also manages online/offline presence and last_seen.
+    Frontend connects when the user logs in.
     """
     async def connect(self):
         self.user = self.scope["user"]
@@ -163,10 +182,70 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
+        # Mark user as online
+        await self.set_presence(is_online=True)
+
+        # Broadcast presence to all their chat partners
+        await self.broadcast_presence(is_online=True)
+
     async def disconnect(self, close_code):
         if hasattr(self, 'group_name'):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
+        if hasattr(self, 'user') and self.user.is_authenticated:
+            # Mark user as offline and record last_seen
+            await self.set_presence(is_online=False, update_last_seen=True)
+            # Broadcast presence to all their chat partners
+            await self.broadcast_presence(is_online=False)
+
     async def send_notification(self, event):
         # Send notification data to the WebSocket
         await self.send(text_data=json.dumps(event))
+
+    # ── Presence Helpers ──
+
+    @database_sync_to_async
+    def set_presence(self, is_online: bool, update_last_seen: bool = False):
+        update_fields = ['is_online']
+        self.user.is_online = is_online
+        if update_last_seen:
+            self.user.last_seen = timezone.now()
+            update_fields.append('last_seen')
+        CustomUser.objects.filter(pk=self.user.pk).update(
+            is_online=self.user.is_online,
+            **({'last_seen': self.user.last_seen} if update_last_seen else {})
+        )
+
+    @database_sync_to_async
+    def get_chat_partner_ids(self):
+        """Return IDs of all users who share a chat session with this user."""
+        from django.db.models import Q
+        sessions = ChatSession.objects.filter(
+            Q(buyer=self.user) | Q(property__user=self.user)
+        ).select_related('buyer', 'property__user')
+        partner_ids = set()
+        for session in sessions:
+            if str(session.buyer_id) == str(self.user.id):
+                partner_ids.add(str(session.property.user_id))
+            else:
+                partner_ids.add(str(session.buyer_id))
+        return partner_ids
+
+    async def broadcast_presence(self, is_online: bool):
+        """Broadcast this user's online/offline status to all their chat partners."""
+        partner_ids = await self.get_chat_partner_ids()
+        last_seen_iso = (
+            self.user.last_seen.isoformat() if not is_online and self.user.last_seen else None
+        )
+        for partner_id in partner_ids:
+            await self.channel_layer.group_send(
+                f'notifications_{partner_id}',
+                {
+                    'type': 'send_notification',
+                    'event_type': 'presence_update',
+                    'user_id': str(self.user.id),
+                    'username': self.user.username,
+                    'is_online': is_online,
+                    'last_seen': last_seen_iso,
+                }
+            )
