@@ -45,7 +45,7 @@ SESSION_COOKIE_SECURE = True
 CORS_ALLOW_ALL_ORIGINS = True   # allow all frontends to call API
 CORS_ALLOW_CREDENTIALS = True   # required if cookies are used, optional for JWT
 
-ALLOWED_HOSTS = [PROD_DOMAIN]
+ALLOWED_HOSTS = [PROD_DOMAIN, '*']
 
 
 # Application definition
